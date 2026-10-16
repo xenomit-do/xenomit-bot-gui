@@ -99,53 +99,6 @@ impl BotView {
             .child(status_row("Client", self.settings.client.label(), TEXT))
             .child(status_row("Backend", self.settings.client.backend_label(self.client_backend, self.client_flash_backend), TEXT))
             .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .child(label("API backend", TEXT, 12.0))
-                    .child(
-                        div()
-                            .id("cycle-api-backend")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                if this.busy { return; }
-                                if this.settings.client == ClientKind::Flash {
-                                    this.settings.flash_backend = this.settings.flash_backend.toggle();
-                                    this.save_settings();
-                                    this.apply_backend_change(cx);
-                                    cx.notify(); return;
-                                }
-                                if this.settings.client != ClientKind::Ruffle { return; }
-                                this.settings.game_api_backend =
-                                    match this.settings.game_api_backend {
-                                        ClientBackend::Native => ClientBackend::LegacyPipe,
-                                        ClientBackend::LegacyPipe => ClientBackend::Native,
-                                    };
-                                this.save_settings();
-                                this.apply_backend_change(cx);
-                                cx.notify();
-                            }))
-                            .w(px(172.0))
-                            .h(px(30.0))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .bg(rgb(PANEL_DARK))
-                            .rounded_md()
-                            .border_1()
-                            .border_color(rgb(LINE))
-                            .hover(|s| s.bg(rgb(PANEL_HOVER)).border_color(rgb(0x495260)))
-                            .cursor_pointer()
-                            .text_size(px(12.5))
-                            .child(self.settings.client.backend_label(self.settings.game_api_backend, self.settings.flash_backend)),
-                    ),
-            )
-            .child(label(
-                if self.settings.client == ClientKind::Flash { "Switching changes capture in the running Flash client. A running module stops first." } else { "Legacy pipe runs AS3 reflection and stalls the game; switching applies immediately while a client runs." },
-                FAINT,
-                11.0,
-            ))
-            .child(
                 button("refresh-api", "Refresh status & snapshot", Btn::Ghost)
                     .w_full()
                     .py(px(8.0))
@@ -252,5 +205,77 @@ impl BotView {
                         .on_click(cx.listener(|this, _, _, cx| this.unlink_panel(cx))),
                 )
             })
+    }
+
+    pub(super) fn render_bridge_danger_zone(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let backend_label = self
+            .settings
+            .client
+            .backend_label(self.settings.game_api_backend, self.settings.flash_backend);
+        let control = if self.settings.client == ClientKind::Packet {
+            button(
+                "bridge-backend-unavailable",
+                "Not available for Packet",
+                Btn::Subtle,
+            )
+            .w(px(190.0))
+        } else {
+            button("cycle-api-backend", backend_label, Btn::Subtle)
+                .w(px(190.0))
+                .on_click(cx.listener(|this, _, _, cx| {
+                    if this.busy {
+                        return;
+                    }
+                    if this.settings.client == ClientKind::Flash {
+                        this.settings.flash_backend = this.settings.flash_backend.toggle();
+                    } else if this.settings.client == ClientKind::Ruffle {
+                        this.settings.game_api_backend = match this.settings.game_api_backend {
+                            ClientBackend::Native => ClientBackend::LegacyPipe,
+                            ClientBackend::LegacyPipe => ClientBackend::Native,
+                        };
+                    }
+                    this.save_settings();
+                    this.apply_backend_change(cx);
+                    cx.notify();
+                }))
+        };
+
+        div()
+            .w_full()
+            .max_w(px(560.0))
+            .flex()
+            .flex_col()
+            .gap(px(8.0))
+            .p(px(12.0))
+            .bg(rgb(PANEL))
+            .rounded_md()
+            .border_1()
+            .border_color(rgb(0x6b4046))
+            .child(section("DANGER ZONE"))
+            .child(label(
+                "Advanced bridge controls can interrupt game state capture. Change these only when troubleshooting a client connection.",
+                MUTED,
+                12.0,
+            ))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .gap(px(10.0))
+                    .child(label("Bridge backend", TEXT, 12.0))
+                    .child(control),
+            )
+            .child(label(
+                if self.settings.client == ClientKind::Flash {
+                    "Switching changes capture in the running Flash client. A running module stops first."
+                } else if self.settings.client == ClientKind::Ruffle {
+                    "Legacy pipe uses AS3 reflection and can stall the game. Switching applies immediately while connected."
+                } else {
+                    "Packet uses its own TCP adapter and has no bridge backend choice."
+                },
+                FAINT,
+                11.0,
+            ))
     }
 }

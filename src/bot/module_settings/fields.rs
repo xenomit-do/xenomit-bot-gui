@@ -61,7 +61,27 @@ impl ModuleSettingsPage {
             SettingKind::Choice { options } => {
                 row = row.child(field_label(&field.label));
                 let mut choices = div().flex().flex_wrap().items_center().gap(px(3.0));
-                for (index, option) in options.iter().enumerate() {
+                let visible_options: Vec<_> = if field.key == "pet_gear" {
+                    self.pet_gears.as_ref().map_or_else(
+                        || options.iter().collect(),
+                        |gears| {
+                            options
+                                .iter()
+                                .filter(|option| {
+                                    option.value.is_null()
+                                        || option
+                                            .value
+                                            .as_i64()
+                                            .and_then(|gear| i32::try_from(gear).ok())
+                                            .is_some_and(|gear| gears.contains(&gear))
+                                })
+                                .collect()
+                        },
+                    )
+                } else {
+                    options.iter().collect()
+                };
+                for (index, option) in visible_options.iter().enumerate() {
                     let selected = option.value == *value;
                     let key = field.key.clone();
                     let choice = option.value.clone();
@@ -86,6 +106,13 @@ impl ModuleSettingsPage {
                     );
                 }
                 row = row.child(choices);
+                if field.key == "pet_gear" && self.pet_gears.is_none() {
+                    row = row.child(label(
+                        "Pet gear inventory unavailable; selection waits for an observation.",
+                        FAINT,
+                        11.0,
+                    ));
+                }
             }
             _ => {
                 row = row.child(field_label(&field.label));
@@ -145,7 +172,11 @@ impl ModuleSettingsPage {
             ));
         }
         if let Some(search) = self.map_search_inputs.get(&field.key) {
-            block = block.child(div().pb(px(4.0)).child(Input::new(search).xsmall().w_full()));
+            block = block.child(
+                div()
+                    .pb(px(4.0))
+                    .child(Input::new(search).xsmall().w_full()),
+            );
         }
         block = block.child(
             div()
@@ -179,27 +210,29 @@ impl ModuleSettingsPage {
                     .border_b_1()
                     .border_color(rgb(LINE_SOFT))
                     .child(div().flex_1().child(label(name, TEXT, 12.0)))
-                    .child(div().w(px(76.0)).child(
-                        SemanticCheckbox::new(format!("entry-{key}-{entry}"))
-                            .checked(checked)
-                            .accessibility_label(entry.clone())
-                            .size(px(13.0))
-                            .on_change(move |next, _, _, cx| {
-                                let _ = page.update(cx, |page, cx| {
-                                    let mut value = setting_value(&page.values, &key)
-                                        .cloned()
-                                        .unwrap_or_else(|| json!({}));
-                                    if let Some(map) = value.as_object_mut() {
-                                        map.insert(
-                                            entry.clone(),
-                                            json!(matches!(next, CheckboxState::Checked)),
-                                        );
-                                    }
-                                    page.set_value(&key, value, cx);
-                                });
-                            })
-                            .child(darkbot_checkbox_indicator(checked)),
-                    ))
+                    .child(
+                        div().w(px(76.0)).child(
+                            SemanticCheckbox::new(format!("entry-{key}-{entry}"))
+                                .checked(checked)
+                                .accessibility_label(entry.clone())
+                                .size(px(13.0))
+                                .on_change(move |next, _, _, cx| {
+                                    let _ = page.update(cx, |page, cx| {
+                                        let mut value = setting_value(&page.values, &key)
+                                            .cloned()
+                                            .unwrap_or_else(|| json!({}));
+                                        if let Some(map) = value.as_object_mut() {
+                                            map.insert(
+                                                entry.clone(),
+                                                json!(matches!(next, CheckboxState::Checked)),
+                                            );
+                                        }
+                                        page.set_value(&key, value, cx);
+                                    });
+                                })
+                                .child(darkbot_checkbox_indicator(checked)),
+                        ),
+                    )
                     .child(div().w(px(116.0)).child(label("—", FAINT, 12.0))),
             );
         }

@@ -3,6 +3,53 @@
 use super::*;
 
 impl BotView {
+    pub(super) fn map_world_point(
+        &self,
+        map_width: f32,
+        map_height: f32,
+        position: gpui_kit::Point<gpui_kit::Pixels>,
+    ) -> (f64, f64) {
+        let center = self
+            .live_frame
+            .hero
+            .as_ref()
+            .map(|hero| (hero.x, hero.y))
+            .unwrap_or((map_width / 2.0, map_height / 2.0));
+        let zoom = self
+            .settings
+            .config_tree
+            .pointer("/bot_settings/map_display/map_zoom")
+            .and_then(serde_json::Value::as_f64)
+            .unwrap_or(1.0)
+            .clamp(0.1, 1.0) as f32;
+        let Some(bounds) = self.map_canvas_bounds.get() else {
+            return (f64::from(center.0), f64::from(center.1));
+        };
+        live_map::screen_to_world_zoom(bounds, map_width, map_height, position, center, zoom)
+    }
+
+    pub(super) fn snap_zone_point(
+        &self,
+        x: f64,
+        y: f64,
+        map_width: f32,
+        map_height: f32,
+    ) -> (f64, f64) {
+        let divisions = self
+            .settings
+            .config_tree
+            .pointer("/bot_settings/other/zone_resolution")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(30)
+            .clamp(1, 300) as f64;
+        let step_x = f64::from(map_width.max(1.0)) / divisions;
+        let step_y = f64::from(map_height.max(1.0)) / divisions;
+        (
+            ((x / step_x).round() * step_x).clamp(0.0, f64::from(map_width)),
+            ((y / step_y).round() * step_y).clamp(0.0, f64::from(map_height)),
+        )
+    }
+
     /// Continue an in-progress map drag: while the left button stays held,
     /// retarget navigation at `MAP_NAV_DRAG_INTERVAL`. Window-level listeners
     /// registered during the canvas paint call this even when the pointer
@@ -21,11 +68,7 @@ impl BotView {
         if !self.map_dragging || self.map_nav_at.elapsed() < MAP_NAV_DRAG_INTERVAL {
             return;
         }
-        let Some(bounds) = self.map_canvas_bounds.get() else {
-            return;
-        };
-        let (world_x, world_y) =
-            live_map::screen_to_world(bounds, map_width, map_height, event.position);
+        let (world_x, world_y) = self.map_world_point(map_width, map_height, event.position);
         self.map_nav_at = Instant::now();
         self.navigate_to_map_point(world_x, world_y, cx);
     }
@@ -43,11 +86,8 @@ impl BotView {
         let Some((map_id, start_x, start_y)) = self.zone_drag_start else {
             return;
         };
-        let Some(bounds) = self.map_canvas_bounds.get() else {
-            return;
-        };
-        let (end_x, end_y) =
-            live_map::screen_to_world(bounds, map_width, map_height, event.position);
+        let (end_x, end_y) = self.map_world_point(map_width, map_height, event.position);
+        let (end_x, end_y) = self.snap_zone_point(end_x, end_y, map_width, map_height);
         self.zone_draft = Some(MapZone {
             name: "New zone".into(),
             x: start_x.min(end_x),
@@ -76,6 +116,7 @@ impl BotView {
                 self.activity = "The zone is too small; drag a larger rectangle.".into();
             }
         }
+        self.zone_hovered = None;
         cx.notify();
     }
 
@@ -89,6 +130,7 @@ impl BotView {
             }
             self.save_settings();
         }
+        self.zone_hovered = None;
         cx.notify();
     }
 
@@ -102,14 +144,29 @@ impl BotView {
             zone.enabled = !zone.enabled;
             self.save_settings();
         }
+        self.zone_hovered = None;
         cx.notify();
     }
 
-    pub(super) fn toggle_map_zone_kind(&mut self, map_id: i32, index: usize, cx: &mut Context<Self>) {
-        if let Some(zone) = self.settings.map_zones.get_mut(&map_id).and_then(|zones| zones.get_mut(index)) {
-            zone.kind = match zone.kind { MapZoneKind::Preferred => MapZoneKind::Avoided, MapZoneKind::Avoided => MapZoneKind::Preferred };
+    pub(super) fn toggle_map_zone_kind(
+        &mut self,
+        map_id: i32,
+        index: usize,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(zone) = self
+            .settings
+            .map_zones
+            .get_mut(&map_id)
+            .and_then(|zones| zones.get_mut(index))
+        {
+            zone.kind = match zone.kind {
+                MapZoneKind::Preferred => MapZoneKind::Avoided,
+                MapZoneKind::Avoided => MapZoneKind::Preferred,
+            };
             self.save_settings();
         }
+        self.zone_hovered = None;
         cx.notify();
     }
 

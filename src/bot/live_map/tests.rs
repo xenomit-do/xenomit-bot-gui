@@ -31,6 +31,19 @@ fn obstacle_outlines_preserve_world_geometry() {
         .is_empty()
     );
 }
+
+#[test]
+fn obstacle_colors_follow_observed_geometry_kind() {
+    use xenomit_game_api::ObstacleKind;
+
+    assert_eq!(super::obstacle_color_key(ObstacleKind::NoAccess), "safety");
+    assert_eq!(super::obstacle_color_key(ObstacleKind::Mine), "mines");
+    assert_eq!(super::obstacle_color_key(ObstacleKind::Cbs), "bases");
+    assert_eq!(
+        super::obstacle_color_key(ObstacleKind::Radiation),
+        "radiation"
+    );
+}
 use super::*;
 use xenomit_game_api::Point as ApiPoint;
 use xenomit_game_api::live::LiveMap;

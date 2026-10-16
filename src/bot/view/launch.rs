@@ -14,11 +14,21 @@ pub(super) struct LaunchResult {
     pub(super) star_catalog: Option<StarSystem>,
 }
 
+/// Collects the API launch settings consumed by the Flash launcher.
+pub(super) fn game_api_options(config_tree: &serde_json::Value) -> serde_json::Value {
+    config_tree
+        .pointer("/bot_settings/api_config")
+        .cloned()
+        .unwrap_or_default()
+}
+
 pub(super) fn authenticate_and_launch(
     provider: Arc<dyn SessionProvider>,
     kind: ClientKind,
     backend: ClientBackend,
     flash_backend: FlashBackend,
+    api_options: serde_json::Value,
+    locale: String,
 ) -> Result<LaunchResult, String> {
     let session = provider.authenticate()?;
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -32,8 +42,16 @@ pub(super) fn authenticate_and_launch(
         let star_catalog = star_catalog::fetch(&session).await;
         match kind {
             ClientKind::Ruffle | ClientKind::Flash => {
-                let mut launch =
-                    launch_game_client(session, kind, backend, flash_backend, statistics).await?;
+                let mut launch = launch_game_client(
+                    session,
+                    kind,
+                    backend,
+                    flash_backend,
+                    statistics,
+                    api_options,
+                    locale,
+                )
+                .await?;
                 launch.star_catalog = star_catalog;
                 Ok(launch)
             }
@@ -56,6 +74,8 @@ pub(super) async fn launch_game_client(
     backend: ClientBackend,
     flash_backend: FlashBackend,
     statistics: SharedStats,
+    api_options: serde_json::Value,
+    locale: String,
 ) -> Result<LaunchResult, String> {
     let executable = if kind == ClientKind::Flash {
         flash_client_executable()?
@@ -83,7 +103,7 @@ pub(super) async fn launch_game_client(
     );
 
     let launch_input = if kind == ClientKind::Flash {
-        flash_launch_input(&session)?
+        flash_launch_input(&session, &api_options, &locale)?
     } else {
         session.sid.clone()
     };
@@ -98,10 +118,48 @@ pub(super) async fn launch_game_client(
         } else {
             "native"
         });
+        let width = api_options
+            .get("width")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(1280)
+            .clamp(320, 7680);
+        let height = api_options
+            .get("height")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(800)
+            .clamp(240, 4320);
+        let quality = api_options
+            .get("game_quality")
+            .and_then(serde_json::Value::as_str)
+            .filter(|quality| matches!(*quality, "low" | "medium" | "high"))
+            .unwrap_or("low");
+        let wmode = if api_options
+            .get("enforce_hw_accel")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(true)
+        {
+            "direct"
+        } else {
+            "window"
+        };
+        command
+            .arg("--width")
+            .arg(width.to_string())
+            .arg("--height")
+            .arg(height.to_string())
+            .arg("--quality")
+            .arg(quality)
+            .arg("--wmode")
+            .arg(wmode);
         command.arg("--launch-stdin");
         if cfg!(windows) {
             command.arg("--name").arg("Xenomit Flash Client");
-            if std::env::var("XENOMIT_FLASH_KEEP_VISIBLE").as_deref() != Ok("1") {
+            if api_options
+                .get("fully_hide_api")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(true)
+                && std::env::var("XENOMIT_FLASH_KEEP_VISIBLE").as_deref() != Ok("1")
+            {
                 command.args(["--hidden", "--hidden-bootstrap", "draw"]);
             }
             if let Some(ocx) = std::env::var_os("XENOMIT_FLASH_OCX_PATH") {
@@ -118,7 +176,12 @@ pub(super) async fn launch_game_client(
             command
                 .arg("--parent-pid")
                 .arg(std::process::id().to_string());
-            if std::env::var("XENOMIT_FLASH_KEEP_VISIBLE").as_deref() != Ok("1") {
+            if api_options
+                .get("fully_hide_api")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(true)
+                && std::env::var("XENOMIT_FLASH_KEEP_VISIBLE").as_deref() != Ok("1")
+            {
                 command.arg("--hidden");
             }
             if let Some(plugin) = std::env::var_os("XENOMIT_FLASH_PLUGIN_PATH") {
@@ -305,14 +368,40 @@ pub(super) fn redact_client_log(line: &str) -> String {
 }
 
 /// The authenticated bootstrap stays on stdin, including SID and FlashVars.
-pub(super) fn flash_launch_input(session: &Session) -> Result<String, String> {
+pub(super) fn flash_launch_input(
+    session: &Session,
+    api_options: &serde_json::Value,
+    locale: &str,
+) -> Result<String, String> {
     let movie = session
         .preloader_url
         .as_deref()
         .ok_or("Flash preloader URL missing")?;
     let mut vars = session.flashvars.clone();
     vars.insert("autoStartEnabled".into(), "1".into());
-    vars.insert("display2d".into(), "2".into());
+    let use_3d = api_options
+        .get("use_3d")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    vars.insert("display2d".into(), if use_3d { "1" } else { "2" }.into());
+    if api_options
+        .get("force_game_language")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false)
+        && !locale.is_empty()
+    {
+        vars.insert("lang".into(), locale.to_owned());
+    }
+    let width = api_options
+        .get("width")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or_else(|| session.stage_width.max(1280) as u64)
+        .clamp(320, 7680);
+    let height = api_options
+        .get("height")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or_else(|| session.stage_height.max(800) as u64)
+        .clamp(240, 4320);
     let mut pairs: Vec<_> = vars.iter().collect();
     pairs.sort_by(|a, b| a.0.cmp(b.0));
     let vars = pairs
@@ -330,17 +419,7 @@ pub(super) fn flash_launch_input(session: &Session) -> Result<String, String> {
     }
     Ok(format!(
         "{movie}\n{instance}\n{}\n{vars}\n{}\n{}\n",
-        session.sid,
-        if session.stage_width > 100 {
-            session.stage_width
-        } else {
-            1280
-        },
-        if session.stage_height > 100 {
-            session.stage_height
-        } else {
-            800
-        }
+        session.sid, width, height
     ))
 }
 

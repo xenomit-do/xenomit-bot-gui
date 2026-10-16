@@ -1,7 +1,12 @@
 use super::*;
 
 /// Shape one Consolas run — the font family matches DarkBot's map fonts.
-pub(super) fn shape_text(window: &mut Window, text: &str, font_size: f32, color: u32) -> ShapedLine {
+pub(super) fn shape_text(
+    window: &mut Window,
+    text: &str,
+    font_size: f32,
+    color: u32,
+) -> ShapedLine {
     shape_text_in(window, "Consolas", text, font_size, color)
 }
 
@@ -28,7 +33,13 @@ pub(super) fn shape_text_in(
 /// Paint a shaped line with its glyph baseline at `(x, baseline_y)`.
 /// `paint_line` pads `origin.y` by `(line_height - ascent - descent)/2`
 /// before the ascent, so invert that to land the baseline exactly.
-pub(super) fn paint_line_at(window: &mut Window, cx: &mut App, line: &ShapedLine, x: f32, baseline_y: f32) {
+pub(super) fn paint_line_at(
+    window: &mut Window,
+    cx: &mut App,
+    line: &ShapedLine,
+    x: f32,
+    baseline_y: f32,
+) {
     let line_height = f32::from(line.font_size) * 1.2;
     let top = baseline_y - (line_height + f32::from(line.ascent) - f32::from(line.descent)) / 2.0;
     let _ = line.paint(
@@ -51,7 +62,9 @@ pub(super) fn paint_centered(
     font_size: f32,
     color: u32,
 ) {
-    paint_centered_in(window, cx, "Consolas", text, center_x, baseline_y, font_size, color);
+    paint_centered_in(
+        window, cx, "Consolas", text, center_x, baseline_y, font_size, color,
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -100,7 +113,13 @@ pub(super) fn tinted(color: u32, alpha: f32) -> Hsla {
 }
 
 /// `drawOvalCentered`: an anti-aliased circle/disc of `diameter` px.
-pub(super) fn paint_oval(window: &mut Window, center: Point<Pixels>, diameter: f32, color: Hsla, filled: bool) {
+pub(super) fn paint_oval(
+    window: &mut Window,
+    center: Point<Pixels>,
+    diameter: f32,
+    color: Hsla,
+    filled: bool,
+) {
     let bounds = Bounds::new(
         point(
             px(f32::from(center.x) - diameter / 2.0),
@@ -116,9 +135,41 @@ pub(super) fn paint_oval(window: &mut Window, center: Point<Pixels>, diameter: f
     window.paint_quad(quad.corner_radii(px(diameter / 2.0)));
 }
 
+pub(super) fn paint_marker(
+    window: &mut Window,
+    center: Point<Pixels>,
+    diameter: f32,
+    color: Hsla,
+    filled: bool,
+    round: bool,
+) {
+    if round {
+        paint_oval(window, center, diameter, color, filled);
+        return;
+    }
+    let bounds = Bounds::new(
+        point(
+            px(f32::from(center.x) - diameter / 2.0),
+            px(f32::from(center.y) - diameter / 2.0),
+        ),
+        size(px(diameter), px(diameter)),
+    );
+    window.paint_quad(if filled {
+        fill(bounds, color)
+    } else {
+        outline(bounds, color, BorderStyle::Solid).border_widths(px(1.0))
+    });
+}
+
 /// A filled ellipse with independent screen radii (the map stretches each
 /// axis separately, so a world-space circle is an ellipse on screen).
-pub(super) fn paint_ellipse(window: &mut Window, center: Point<Pixels>, rx: f32, ry: f32, color: Hsla) {
+pub(super) fn paint_ellipse(
+    window: &mut Window,
+    center: Point<Pixels>,
+    rx: f32,
+    ry: f32,
+    color: Hsla,
+) {
     const SEGMENTS: usize = 64;
     let (cx, cy) = (f32::from(center.x), f32::from(center.y));
     let mut path = PathBuilder::fill();
@@ -168,12 +219,15 @@ pub(super) fn paint_health_bar(
     } else {
         0.0
     };
-    window.paint_quad(fill(rect(x, y, width, height), rgb(COLOR_HEALTH_DARK)));
-    window.paint_quad(fill(rect(x, y, nano_w + hp_w, height), rgb(COLOR_HEALTH)));
+    window.paint_quad(fill(rect(x, y, width, height), rgb(bar.health_background)));
+    window.paint_quad(fill(
+        rect(x, y, nano_w + hp_w, height),
+        rgb(bar.health_color),
+    ));
     if nano_w > 0.0 {
-        window.paint_quad(fill(rect(x, y, nano_w, height), rgb(COLOR_NANO_HULL)));
+        window.paint_quad(fill(rect(x, y, nano_w, height), rgb(bar.nano_color)));
     }
-    let show_amount = height >= 8.0;
+    let show_amount = bar.show_numbers && height >= 8.0;
     if show_amount {
         paint_centered(
             window,
@@ -186,7 +240,7 @@ pub(super) fn paint_health_bar(
             x + width / 2.0,
             y + height - 2.0,
             13.0,
-            COLOR_TEXT,
+            bar.text_color,
         );
     }
     if bar.max_shield > 0.0 {
@@ -194,9 +248,12 @@ pub(super) fn paint_health_bar(
         let shield_w = width * (bar.shield / bar.max_shield).clamp(0.0, 1.0);
         window.paint_quad(fill(
             rect(x, shield_y, width, height),
-            rgb(COLOR_SHIELD_DARK),
+            rgb(bar.shield_background),
         ));
-        window.paint_quad(fill(rect(x, shield_y, shield_w, height), rgb(COLOR_SHIELD)));
+        window.paint_quad(fill(
+            rect(x, shield_y, shield_w, height),
+            rgb(bar.shield_color),
+        ));
         if show_amount {
             paint_centered(
                 window,
@@ -209,7 +266,7 @@ pub(super) fn paint_health_bar(
                 x + width / 2.0,
                 shield_y + height - 2.0,
                 13.0,
-                COLOR_TEXT,
+                bar.text_color,
             );
         }
     }
@@ -229,6 +286,8 @@ pub(super) fn paint_backgrounded(
     lines: &[ShapedLine],
     line_height: f32,
     right_aligned: bool,
+    background: u32,
+    background_alpha: f32,
 ) -> BackgroundedBlock {
     let width = lines
         .iter()
@@ -242,7 +301,7 @@ pub(super) fn paint_backgrounded(
     let top = f32::from(bounds.origin.y) + canvas_h / 2.0 - height / 2.0;
     window.paint_quad(fill(
         Bounds::new(point(px(left), px(top)), size(px(width), px(height))),
-        tinted(COLOR_TEXT_BG, ALPHA_TEXT_BG),
+        tinted(background, background_alpha),
     ));
     BackgroundedBlock {
         left: left + 4.0,

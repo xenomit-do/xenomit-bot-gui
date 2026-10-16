@@ -3,6 +3,27 @@
 use super::*;
 
 impl BotView {
+    pub(super) fn refresh_with_policy(&mut self, cx: &mut Context<Self>) {
+        let pause_minutes = self
+            .settings
+            .config_tree
+            .pointer("/miscellaneous/pause_for")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0)
+            .min(720);
+        let resume = self.behavior_running
+            || self
+                .engine
+                .as_ref()
+                .is_some_and(|engine| engine.is_running());
+        if pause_minutes > 0 {
+            self.refresh_pause_after_reload = Some((pause_minutes, resume));
+            self.reload_client_with_resume(Some(false), cx);
+        } else {
+            self.reload_client(cx);
+        }
+    }
+
     pub(super) fn request_safe_stop(&mut self, close: bool, cx: &mut Context<Self>) {
         if !self.settings.behaviors.is_object() {
             self.settings.behaviors = json!({});
@@ -110,10 +131,12 @@ impl BotView {
                 match result {
                     Ok(()) => {
                         view.behavior_running = engine.is_running();
+                        view.update_statistics_policy(view.behavior_running);
                         view.activity = format!("Profile {name} is running.");
                     }
                     Err(error) => {
                         view.behavior_running = false;
+                        view.update_statistics_policy(false);
                         view.activity = format!("Could not start profile {name}: {error}");
                     }
                 }
@@ -127,7 +150,11 @@ impl BotView {
         self.reload_client_with_resume(None, cx);
     }
 
-    pub(super) fn reload_client_with_resume(&mut self, resume: Option<bool>, cx: &mut Context<Self>) {
+    pub(super) fn reload_client_with_resume(
+        &mut self,
+        resume: Option<bool>,
+        cx: &mut Context<Self>,
+    ) {
         let Some(session) = self.session.clone() else {
             self.activity = "Cannot reload without the authenticated session.".into();
             cx.notify();
@@ -182,7 +209,7 @@ impl BotView {
                 view.bridge = None;
                 view.bridge_ready = false;
                 view.game_process = None;
-                view.begin_authentication(auth, cx);
+                view.begin_authentication(auth, None, cx);
             });
         })
         .detach();
@@ -216,7 +243,11 @@ impl BotView {
         .detach();
     }
 
-    pub(super) fn apply_pending_profile_sync(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn apply_pending_profile_sync(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if let Some((id, values)) = self.pending_profile_sync.take() {
             if let Some(page) = self.module_pages.get(&id) {
                 page.update(cx, |page, cx| page.sync_settings(values, window, cx));

@@ -82,15 +82,22 @@ impl BotView {
                                             view.note_live_frame(cx);
                                             let map_id =
                                                 view.live_frame.map.as_ref().map(|map| map.id);
-                                            if let Some(hero) = &view.live_frame.hero {
-                                                view.hero_trail.update(
+                                            if let Some((x, y)) = view
+                                                .live_frame
+                                                .hero
+                                                .as_ref()
+                                                .map(|hero| (hero.x, hero.y))
+                                            {
+                                                view.update_hero_trail(
                                                     map_id,
-                                                    hero.x,
-                                                    hero.y,
+                                                    x,
+                                                    y,
                                                     Instant::now(),
                                                 );
                                             }
-                                            cx.notify();
+                                            if view.map_repaint_due() {
+                                                cx.notify();
+                                            }
                                         });
                                     })
                                     .detach();
@@ -114,14 +121,17 @@ impl BotView {
                         let frame = view.live_frame.frame;
                         view.note_live_frame(cx);
                         let map_id = view.live_frame.map.as_ref().map(|map| map.id);
-                        if let Some(hero) = &view.live_frame.hero {
-                            view.hero_trail
-                                .update(map_id, hero.x, hero.y, Instant::now());
+                        if let Some((x, y)) =
+                            view.live_frame.hero.as_ref().map(|hero| (hero.x, hero.y))
+                        {
+                            view.update_hero_trail(map_id, x, y, Instant::now());
                         }
                         if refresh_snapshot {
                             view.snapshot = Some(view.live_frame.to_game_snapshot());
                         }
-                        cx.notify();
+                        if view.map_repaint_due() {
+                            cx.notify();
+                        }
                         Poll::Frame(frame)
                     })
                     .unwrap_or(Poll::Stop);
@@ -148,6 +158,34 @@ impl BotView {
             ClientKind::Ruffle => self.client_backend == ClientBackend::Native,
             ClientKind::Flash => self.client_flash_backend == FlashBackend::NativeMemory,
             ClientKind::Packet => false,
+        }
+    }
+
+    fn update_hero_trail(&mut self, map_id: Option<i32>, x: f32, y: f32, now: Instant) {
+        let seconds = self
+            .settings
+            .config_tree
+            .pointer("/bot_settings/map_display/trail_length")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(15)
+            .min(300);
+        self.hero_trail.set_ttl(Duration::from_secs(seconds));
+        self.hero_trail.update(map_id, x, y, now);
+    }
+
+    fn map_repaint_due(&mut self) -> bool {
+        let delay = self
+            .settings
+            .config_tree
+            .pointer("/bot_settings/map_display/refresh_delay")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(1)
+            .clamp(1, 25);
+        if self.last_map_repaint_at.elapsed() >= Duration::from_millis(16 * delay) {
+            self.last_map_repaint_at = Instant::now();
+            true
+        } else {
+            false
         }
     }
 
@@ -229,6 +267,18 @@ impl BotView {
             page.update(cx, |page, cx| {
                 page.observe(&entities, cx);
                 page.observe_maps(&self.live_frame.navigation.star_system.maps, cx);
+                let pet_gears = self
+                    .live_frame
+                    .navigation
+                    .features
+                    .as_ref()
+                    .and_then(|features| features.pet.as_ref())
+                    .and_then(|pet| pet.gears.clone())
+                    .or_else(|| {
+                        (!self.live_frame.navigation.hero.pet_gears.is_empty())
+                            .then(|| self.live_frame.navigation.hero.pet_gears.clone())
+                    });
+                page.observe_pet_gears(pet_gears, cx);
             });
         }
         let named_lists: Vec<(&str, String)> = self
@@ -253,6 +303,24 @@ impl BotView {
         if let Some(page) = self.module_pages.get("__targets") {
             page.update(cx, |page, cx| page.observe_named_lists(&named_lists, cx));
         }
+        let maps = self.live_frame.navigation.star_system.maps.clone();
+        let mut tags: Vec<String> = self.settings.player_tags.values().cloned().collect();
+        tags.sort();
+        tags.dedup();
+        self.config_page.update(cx, |page, cx| {
+            page.observe_maps(&maps, cx);
+            page.observe_tags(tags, cx);
+            for list in ["npcs", "boxes"] {
+                let names: Vec<String> = named_lists
+                    .iter()
+                    .filter(|(kind, _)| *kind == list)
+                    .map(|(_, name)| name.clone())
+                    .collect();
+                if !names.is_empty() {
+                    page.observe_names(list, &names, cx);
+                }
+            }
+        });
     }
 
     /// A numeric field on the hero entity: the fresh

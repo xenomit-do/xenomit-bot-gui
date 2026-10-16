@@ -35,6 +35,49 @@ pub fn screen_to_world(
     )
 }
 
+/// Zoom around a world-space camera center. The settings value follows the
+/// DarkBot percentage convention: `1.0` shows the full map and smaller values
+/// zoom in while keeping the camera centered on the hero.
+pub fn world_to_screen_zoom(
+    bounds: Bounds<Pixels>,
+    map_width: f32,
+    map_height: f32,
+    x: f32,
+    y: f32,
+    center: (f32, f32),
+    zoom: f32,
+) -> Point<Pixels> {
+    let zoom = zoom.clamp(0.1, 1.0);
+    world_to_screen(
+        bounds,
+        map_width,
+        map_height,
+        center.0 + (x - center.0) / zoom,
+        center.1 + (y - center.1) / zoom,
+    )
+}
+
+pub fn screen_to_world_zoom(
+    bounds: Bounds<Pixels>,
+    map_width: f32,
+    map_height: f32,
+    point: Point<Pixels>,
+    center: (f32, f32),
+    zoom: f32,
+) -> (f64, f64) {
+    let zoom = zoom.clamp(0.1, 1.0);
+    let width = f64::from(bounds.size.width).max(1.0);
+    let height = f64::from(bounds.size.height).max(1.0);
+    let x = (f64::from(point.x) - f64::from(bounds.origin.x)) / width * f64::from(map_width);
+    let y = (f64::from(point.y) - f64::from(bounds.origin.y)) / height * f64::from(map_height);
+    (
+        (f64::from(center.0) + (x - f64::from(center.0)) * f64::from(zoom))
+            .clamp(0.0, f64::from(map_width.max(0.0))),
+        (f64::from(center.1) + (y - f64::from(center.1)) * f64::from(zoom))
+            .clamp(0.0, f64::from(map_height.max(0.0))),
+    )
+}
+
 /// Shared shape conversion for drawing and geometry validation tests. Inverted
 /// zones draw their boundary only: their interior is playable.
 pub fn obstacle_outline(shape: &xenomit_game_api::ObstacleShape) -> Vec<(f64, f64)> {

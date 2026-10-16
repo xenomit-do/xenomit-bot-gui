@@ -40,6 +40,16 @@ preserving defaults and `botd` can swap them later:
 - `SettingsStore` ← `FileSettingsStore` (same `%APPDATA%\XenomitBot\modules.json`).
 - `SessionProvider` ← `BackpageSessionProvider` (password or pasted dosid).
 
+## Settings tree
+
+The General tab is a DarkBot-style settings tree (`src/bot/config_tree/`, docs in
+`docs/SETTINGS_TREE.md`): a typed schema ported from DarkBot's `Config.java`, profile files
+(`config.json`, `configs/<name>.json`) beside `modules.json`, and `bridge.rs`, which pushes the
+options the runtime understands into `BotSettings`. Options the runtime cannot honour yet are
+listed with the needed client API / engine / runtime changes in `docs/SETTINGS_GAPS.md`
+(regenerate with `cargo test regenerate_docs -- --ignored`). The old per-module pages live under
+the Modules tab.
+
 ## Behavior runtime
 
 - Base's `refresh` rule defaults to enabled with `interval_minutes = 60`.

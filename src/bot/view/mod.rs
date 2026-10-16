@@ -10,14 +10,18 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use gpui_kit::component::input::{Input, InputState};
-use gpui_kit::component::{Sizable, select::{Select, SelectEvent, SelectItem, SelectState}};
-use gpui_kit::component::scroll::ScrollableElement;
-use gpui_kit::prelude::*;
 use gpui_kit::component::Root;
+use gpui_kit::component::input::{Input, InputState};
+use gpui_kit::component::scroll::ScrollableElement;
+use gpui_kit::component::{
+    Sizable,
+    select::{Select, SelectEvent, SelectItem, SelectState},
+};
+use gpui_kit::prelude::*;
 use gpui_kit::{
-    AnyElement, Bounds, TitlebarOptions, WindowBounds, WindowDecorations, WindowHandle, WindowOptions, size, Context, ElementId, Entity, Focusable, FontWeight, Pixels, Render,
-    SharedString, Stateful, Window, WindowControlArea, canvas, div, px, rgb,
+    AnyElement, Bounds, Context, ElementId, Entity, Focusable, FontWeight, Pixels, Render,
+    SharedString, Stateful, TitlebarOptions, Window, WindowBounds, WindowControlArea,
+    WindowDecorations, WindowHandle, WindowOptions, canvas, div, px, rgb, size,
 };
 use serde_json::json;
 use xenomit_backpage::session::Session;
@@ -36,6 +40,7 @@ use xenomit_game_api::{
     SettingDescriptor, SettingKind,
 };
 
+use super::config_tree::{ConfigChanged, ConfigTreePage};
 use super::live_map::{self, HeroTrail};
 use super::module_settings::{ModuleSettingsPage, SettingsChanged};
 use super::settings_window::SettingsHost;
@@ -74,12 +79,15 @@ pub(super) struct BotView {
     all_module_descriptors: Vec<ModuleDescriptor>,
     plugin_descriptors: Vec<PluginDescriptor>,
     module_pages: BTreeMap<String, Entity<ModuleSettingsPage>>,
+    /// DarkBot-style settings tree (the General tab); see `config_tree/`.
+    config_page: Entity<ConfigTreePage>,
     settings_module_selector: Option<Entity<SelectState<Vec<ModuleChoice>>>>,
     settings_module_selector_value: String,
     settings_category: String,
     module_subscriptions: Vec<gpui_kit::Subscription>,
     pending_profile_sync: Option<(String, serde_json::Value)>,
     resume_after_reload: bool,
+    refresh_pause_after_reload: Option<(u64, bool)>,
     pending_catalog: Option<Result<(Vec<ModuleDescriptor>, Vec<PluginDescriptor>), String>>,
     catalog_loading: bool,
     catalog_ready: bool,
@@ -101,8 +109,12 @@ pub(super) struct BotView {
     /// Working-set size of the game client process.
     game_mem_bytes: u64,
     login_dialog_open: bool,
+    exit_confirmation_open: bool,
+    session_username: String,
     login_tab: LoginTab,
+    client_picker_open: bool,
     busy: bool,
+    connecting_saved_credential: Option<usize>,
     login_error: Option<String>,
     saved_credentials_path: PathBuf,
     saved_credentials: Vec<SavedCredential>,
@@ -128,6 +140,8 @@ pub(super) struct BotView {
     live_fps_frames: u32,
     live_fps_since: Instant,
     hero_trail: HeroTrail,
+    /// Last map notification; `map_display.refresh_delay` throttles painting.
+    last_map_repaint_at: Instant,
     /// Ship destructions counted this session from the killed-state edge.
     deaths: u32,
     /// Previous frame's killed flag — rising edges bump `deaths`.
@@ -147,6 +161,7 @@ pub(super) struct BotView {
     zone_drawing: bool,
     zone_drag_start: Option<(i32, f64, f64)>,
     zone_draft: Option<MapZone>,
+    zone_hovered: Option<(i32, usize)>,
     client_logs: Arc<Mutex<VecDeque<String>>>,
     activity: String,
     engine: Option<Arc<dyn BehaviorRuntime>>,
@@ -250,17 +265,22 @@ impl BotView {
         let panel_code =
             cx.new(|cx| InputState::new(window, cx).placeholder("Pairing code from the panel"));
 
+        let config_page = cx.new(|cx| {
+            ConfigTreePage::new(xenomit_bot_runtime::settings::config_root(), window, cx)
+        });
         let mut view = Self {
             module_descriptors: Vec::new(),
             all_module_descriptors: Vec::new(),
             plugin_descriptors: Vec::new(),
             module_pages: BTreeMap::new(),
+            config_page: config_page.clone(),
             settings_module_selector: None,
             settings_module_selector_value: String::new(),
             settings_category: "General".into(),
             module_subscriptions: Vec::new(),
             pending_profile_sync: None,
             resume_after_reload: false,
+            refresh_pause_after_reload: None,
             pending_catalog: None,
             catalog_loading: false,
             catalog_ready: false,
@@ -279,8 +299,12 @@ impl BotView {
             stats_open: false,
             game_mem_bytes: 0,
             login_dialog_open: true,
+            exit_confirmation_open: false,
+            session_username: String::new(),
             login_tab: LoginTab::Account,
+            client_picker_open: false,
             busy: false,
+            connecting_saved_credential: None,
             login_error: None,
             saved_credentials_path,
             saved_credentials,
@@ -305,6 +329,7 @@ impl BotView {
             live_fps_frames: 0,
             live_fps_since: Instant::now(),
             hero_trail: HeroTrail::default(),
+            last_map_repaint_at: Instant::now(),
             deaths: 0,
             hero_dead: false,
             star_catalog: None,
@@ -315,6 +340,7 @@ impl BotView {
             zone_drawing: false,
             zone_drag_start: None,
             zone_draft: None,
+            zone_hovered: None,
             client_logs: Arc::new(Mutex::new(VecDeque::new())),
             activity: "Ready. Authenticate a Backpage session to begin.".into(),
             engine,
@@ -343,7 +369,49 @@ impl BotView {
             plugins_descriptor: None,
             pending_remote_sync: Vec::new(),
         };
+        let close_view = cx.entity().downgrade();
+        window.on_window_should_close(cx, move |window, cx| {
+            let bounds = window.bounds();
+            let _ = close_view.update(cx, |view, cx| {
+                let save_position = view
+                    .settings
+                    .config_tree
+                    .pointer("/bot_settings/bot_gui/save_gui_pos")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false);
+                if save_position {
+                    view.settings.gui_window_bounds = Some([
+                        f32::from(bounds.origin.x) as i32,
+                        f32::from(bounds.origin.y) as i32,
+                        f32::from(bounds.size.width) as i32,
+                        f32::from(bounds.size.height) as i32,
+                    ]);
+                    view.save_settings();
+                }
+                let confirm = view
+                    .settings
+                    .config_tree
+                    .pointer("/bot_settings/bot_gui/confirm_exit")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(true);
+                if confirm {
+                    view.exit_confirmation_open = true;
+                    cx.notify();
+                } else {
+                    view.close_application(cx);
+                }
+            });
+            false
+        });
         // Independent background setup overlaps authentication/client loading.
+        view.module_subscriptions.push(
+            cx.subscribe(&config_page, |view, _page, _: &ConfigChanged, cx| {
+                view.apply_config_tree(cx)
+            }),
+        );
+        // Pushes a previously saved tree into the settings (or waits for the
+        // module catalog when the profile still needs seeding).
+        view.apply_config_tree(cx);
         view.load_module_catalog(cx);
         // The panel pump ticks independently of a game session so remote
         // commands and status reach the agent even while signed out.
@@ -397,31 +465,34 @@ impl Render for BotView {
         self.apply_pending_profile_sync(window, cx);
         if !self.session_connected {
             if self.dashboard_visible {
-                window.resize(gpui_kit::size(px(620.0), px(760.0)));
-                window.set_window_title("Xenomit — Sign in");
+                window.resize(gpui_kit::size(px(460.0), px(390.0)));
+                window.set_window_title("Login");
                 self.dashboard_visible = false;
             }
-            return div()
-                .size_full()
-                .flex()
-                .flex_col()
-                .bg(rgb(BG))
-                .child(self.render_titlebar(window))
-                .child(
-                    div().flex_1().relative().child(
-                        div()
-                            .absolute()
-                            .inset_0()
-                            .child(self.render_login_dialog(cx)),
-                    ),
-                )
-                .into_any_element();
+            let mut root = div().size_full().child(self.render_login_dialog(cx));
+            if self.exit_confirmation_open {
+                root = root.child(self.render_exit_confirmation(cx));
+            }
+            return root.into_any_element();
         }
         if !self.dashboard_visible {
-            window.resize(gpui_kit::size(px(900.0), px(640.0)));
-            window.set_window_title("Xenomit Bot");
+            let save_position = self
+                .settings
+                .config_tree
+                .pointer("/bot_settings/bot_gui/save_gui_pos")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false);
+            let restored_size = save_position
+                .then_some(self.settings.gui_window_bounds)
+                .flatten()
+                .filter(|bounds| bounds[2] >= 600 && bounds[3] >= 420)
+                .map(|bounds| size(px(bounds[2] as f32), px(bounds[3] as f32)))
+                .unwrap_or_else(|| size(px(900.0), px(640.0)));
+            window.resize(restored_size);
             self.dashboard_visible = true;
         }
+        let title = self.app_title();
+        window.set_window_title(&title);
         let mut root = div()
             .size_full()
             .relative()
@@ -430,7 +501,7 @@ impl Render for BotView {
             .bg(rgb(BG))
             .text_color(rgb(TEXT))
             .font_family("Segoe UI")
-            .child(self.render_header(window, cx))
+            .child(self.render_header(window, cx, true))
             .child(div().flex_1().child(self.render_main_content(cx)));
         if self.menu_open {
             root = root
@@ -461,6 +532,9 @@ impl Render for BotView {
                     .inset_0()
                     .child(self.render_login_dialog(cx)),
             );
+        }
+        if self.exit_confirmation_open {
+            root = root.child(self.render_exit_confirmation(cx));
         }
         root.into_any_element()
     }

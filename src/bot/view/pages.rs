@@ -31,7 +31,13 @@ impl BotView {
     }
 
     /// DarkBot's compact settings category rail.
-    pub(super) fn render_settings_sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_settings_sidebar(
+        &self,
+        cx: &mut Context<Self>,
+        tabs: bool,
+        button_height: f32,
+        button_size: f32,
+    ) -> impl IntoElement {
         const CATEGORIES: [&str; 8] = [
             "General",
             "Collect",
@@ -45,40 +51,53 @@ impl BotView {
 
         let mut sidebar = div()
             .id("settings-category-rail")
-            .w(px(138.0))
-            .h_full()
             .flex_shrink_0()
             .flex()
-            .flex_col()
             .gap(px(1.0))
-            .py(px(4.0))
-            .overflow_y_scrollbar()
-            .bg(rgb(PANEL_DARK))
-            .border_r_1()
-            .border_color(rgb(LINE));
+            .bg(rgb(PANEL_DARK));
+        if tabs {
+            sidebar = sidebar
+                .w_full()
+                .h(px(button_height + 8.0))
+                .items_center()
+                .px(px(8.0))
+                .border_b_1()
+                .border_color(rgb(LINE));
+        } else {
+            sidebar = sidebar
+                .w(px(138.0))
+                .h_full()
+                .flex_col()
+                .py(px(4.0))
+                .border_r_1()
+                .border_color(rgb(LINE));
+        }
         for title in CATEGORIES {
             let active = self.settings_category == title;
             let title_owned = title.to_owned();
-            sidebar = sidebar.child(
-                div()
-                    .id(format!("settings-category-{}", title.to_ascii_lowercase().replace(' ', "-")))
-                    .h(px(27.0))
-                    .flex_shrink_0()
-                    .flex()
-                    .items_center()
-                    .px(px(9.0))
-                    .text_size(px(11.5))
-                    .text_color(rgb(if active { TEXT } else { MUTED }))
-                    .bg(rgb(if active { BLUE_TINT } else { PANEL_DARK }))
-                    .hover(move |style| {
-                        style.bg(rgb(if active { BLUE_TINT } else { PANEL_HOVER }))
-                    })
-                    .cursor_pointer()
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.select_settings_category(&title_owned, cx);
-                    }))
-                    .child(title),
-            );
+            let mut item = div()
+                .id(format!(
+                    "settings-category-{}",
+                    title.to_ascii_lowercase().replace(' ', "-")
+                ))
+                .flex_shrink_0()
+                .flex()
+                .items_center()
+                .text_size(px(9.5 + button_size * 0.5))
+                .text_color(rgb(if active { TEXT } else { MUTED }))
+                .bg(rgb(if active { BLUE_TINT } else { PANEL_DARK }))
+                .hover(move |style| style.bg(rgb(if active { BLUE_TINT } else { PANEL_HOVER })))
+                .cursor_pointer()
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.select_settings_category(&title_owned, cx);
+                }))
+                .child(title);
+            if tabs {
+                item = item.h(px(button_height)).px(px(5.0 + button_size));
+            } else {
+                item = item.w_full().h(px(button_height)).px(px(9.0));
+            }
+            sidebar = sidebar.child(item);
         }
         sidebar.when(self.catalog_loading, |sidebar| {
             sidebar.child(
@@ -176,9 +195,13 @@ impl BotView {
             .flex_1()
             .h_full()
             .min_h(px(0.0))
+            .flex()
+            .flex_col()
+            .gap(px(6.0))
             .overflow_y_scrollbar()
             .bg(rgb(BG))
             .child(self.render_account_panel(cx))
+            .child(self.render_bridge_danger_zone(cx))
     }
 
     pub(super) fn render_targets_page(&self) -> impl IntoElement {
@@ -256,7 +279,11 @@ impl BotView {
                             "{}  ·  x {:.0}, y {:.0}  ·  {:.0} × {:.0}",
                             zone.name, zone.x, zone.y, zone.width, zone.height
                         ),
-                        if zone.enabled { if is_preferred { 0x76d69a } else { 0xf07878 } } else { MUTED },
+                        if zone.enabled {
+                            if is_preferred { 0x76d69a } else { 0xf07878 }
+                        } else {
+                            MUTED
+                        },
                         12.0,
                     )))
                     .child(
@@ -264,8 +291,22 @@ impl BotView {
                             .flex()
                             .items_center()
                             .gap(px(4.0))
-                            .child(button(format!("zone-kind-{map_id}-{index}"), if is_preferred { "Avoided" } else { "Preferred" }, if is_preferred { Btn::Ghost } else { Btn::Selected })
-                                .on_click(cx.listener(move |this, _, _, cx| this.toggle_map_zone_kind(map_id, index, cx))))
+                            .child(
+                                button(
+                                    format!("zone-kind-{map_id}-{index}"),
+                                    if is_preferred { "Avoided" } else { "Preferred" },
+                                    if is_preferred {
+                                        Btn::Ghost
+                                    } else {
+                                        Btn::Selected
+                                    },
+                                )
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| {
+                                        this.toggle_map_zone_kind(map_id, index, cx)
+                                    },
+                                )),
+                            )
                             .child(
                                 button(
                                     format!("toggle-zone-{map_id}-{index}"),
@@ -330,8 +371,15 @@ impl BotView {
             self.render_design_page(cx).into_any_element()
         } else if self.top_tab == "targets" {
             self.render_targets_page().into_any_element()
-        } else {
+        } else if self.top_tab == "modules" {
             self.render_general_page(cx).into_any_element()
+        } else {
+            div()
+                .flex_1()
+                .w_full()
+                .min_h(px(0.0))
+                .child(self.config_page.clone())
+                .into_any_element()
         };
 
         div()
@@ -356,9 +404,9 @@ impl BotView {
                     .child(
                         button("close-settings", "×  Close", Btn::Ghost)
                             .h(px(26.0))
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.toggle_settings_window(cx)
-                            })),
+                            .on_click(
+                                cx.listener(|this, _, _, cx| this.toggle_settings_window(cx)),
+                            ),
                     ),
             )
             .child(settings_body)
@@ -397,7 +445,14 @@ impl BotView {
                     .flex_col()
                     .gap(px(3.0))
                     .child(label(title, MUTED, 10.5))
-                    .child(label(subtitle, FAINT, 11.0)),
+                    .when(
+                        self.settings
+                            .config_tree
+                            .pointer("/bot_settings/other/show_instructions")
+                            .and_then(serde_json::Value::as_bool)
+                            .unwrap_or(true),
+                        |heading| heading.child(label(subtitle, FAINT, 11.0)),
+                    ),
             );
         if category == "General" {
             let mut module_picker = div()
@@ -455,43 +510,59 @@ impl BotView {
                     .child(label(error, 0xf0b9b9, 12.0)),
             );
         } else if self.catalog_loading {
-            page_content = page_content.child(
-                div()
-                    .flex_1()
-                    .p(px(12.0))
-                    .child(label("Loading settings…", MUTED, 12.0)),
-            );
+            page_content = page_content.child(div().flex_1().p(px(12.0)).child(label(
+                "Loading settings…",
+                MUTED,
+                12.0,
+            )));
         } else {
-            page_content = page_content.child(
-                div()
-                    .flex_1()
-                    .p(px(12.0))
-                    .child(label("No settings are available in this category.", MUTED, 12.0)),
-            );
+            page_content = page_content.child(div().flex_1().p(px(12.0)).child(label(
+                "No settings are available in this category.",
+                MUTED,
+                12.0,
+            )));
         }
 
-        div()
+        let tabs = self
+            .settings
+            .config_tree
+            .pointer("/bot_settings/bot_gui/config_tree_tabs")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(true);
+        let button_size = self
+            .settings
+            .config_tree
+            .pointer("/bot_settings/bot_gui/button_size")
+            .and_then(serde_json::Value::as_f64)
+            .unwrap_or(4.0)
+            .clamp(1.0, 20.0) as f32;
+        let button_height = 20.0 + button_size * 1.75;
+        let sidebar = self.render_settings_sidebar(cx, tabs, button_height, button_size);
+        let pane = div()
+            .id("settings-page-pane")
+            .flex_1()
+            .h_full()
+            .min_w(px(0.0))
+            .min_h(px(0.0))
+            .flex()
+            .flex_col()
+            .overflow_hidden()
+            .bg(rgb(PANEL))
+            .child(heading)
+            .child(page_content);
+        let mut root = div()
             .flex_1()
             .w_full()
             .h_full()
             .min_w(px(0.0))
             .min_h(px(0.0))
             .flex()
-            .bg(rgb(PANEL))
-            .child(self.render_settings_sidebar(cx))
-            .child(
-                div()
-                    .id("settings-page-pane")
-                    .flex_1()
-                    .h_full()
-                    .min_w(px(0.0))
-                    .min_h(px(0.0))
-                    .flex()
-                    .flex_col()
-                    .overflow_hidden()
-                    .bg(rgb(PANEL))
-                    .child(heading)
-                    .child(page_content),
-            )
+            .bg(rgb(PANEL));
+        if tabs {
+            root = root.flex_col().child(sidebar).child(pane);
+        } else {
+            root = root.flex_row().child(sidebar).child(pane);
+        }
+        root
     }
 }

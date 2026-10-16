@@ -22,7 +22,6 @@ use xenomit_game_api::model::SafePlace;
 use xenomit_game_api::star_map;
 use xenomit_game_api::{PortalInfo, StarSystem};
 
-
 mod geometry;
 mod hud;
 mod markers;
@@ -30,9 +29,9 @@ mod naming;
 mod overlay;
 mod paint;
 mod palette;
-mod trail;
 #[cfg(test)]
 mod tests;
+mod trail;
 
 pub use geometry::*;
 pub use hud::*;

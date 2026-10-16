@@ -3,6 +3,76 @@
 use super::*;
 
 impl BotView {
+    pub(super) fn app_title(&self) -> String {
+        let include_username = self
+            .settings
+            .config_tree
+            .pointer("/miscellaneous/username_on_title")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
+        if !include_username {
+            return "Xenomit Bot".into();
+        }
+        let name = if self.session_username.trim().is_empty() {
+            self.session
+                .as_ref()
+                .map(|session| session.user_id.to_string())
+        } else {
+            Some(self.session_username.clone())
+        };
+        name.map_or_else(
+            || "Xenomit Bot".into(),
+            |name| format!("Xenomit Bot — {name}"),
+        )
+    }
+
+    pub(super) fn render_exit_confirmation(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .absolute()
+            .inset_0()
+            .flex()
+            .items_center()
+            .justify_center()
+            .bg(rgb(0x000000).alpha(0.68))
+            .child(
+                div()
+                    .w(px(360.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(12.0))
+                    .p(px(18.0))
+                    .rounded_lg()
+                    .bg(rgb(PANEL))
+                    .border_1()
+                    .border_color(rgb(LINE))
+                    .shadow_lg()
+                    .child(section("EXIT XENOMIT"))
+                    .child(label(
+                        "Close the bot and stop the game client?",
+                        MUTED,
+                        12.0,
+                    ))
+                    .child(
+                        div()
+                            .flex()
+                            .justify_end()
+                            .gap(px(8.0))
+                            .child(button("cancel-exit", "Cancel", Btn::Ghost).on_click(
+                                cx.listener(|this, _, _, cx| {
+                                    this.exit_confirmation_open = false;
+                                    cx.notify();
+                                }),
+                            ))
+                            .child(button("confirm-exit", "Exit", Btn::Danger).on_click(
+                                cx.listener(|this, _, _, cx| {
+                                    this.exit_confirmation_open = false;
+                                    this.close_application(cx);
+                                }),
+                            )),
+                    ),
+            )
+    }
+
     /// Open the settings window, or close it when it is already open.
     pub(super) fn toggle_settings_window(&mut self, cx: &mut Context<Self>) {
         if let Some(handle) = self.settings_window.take() {
@@ -44,7 +114,8 @@ impl BotView {
                     ..Default::default()
                 },
                 move |window, cx| {
-                    window.set_window_title("Xenomit Bot");
+                    let title = bot_for_window.read(cx).app_title();
+                    window.set_window_title(&title);
                     let weak = bot_for_window.downgrade();
                     window.on_window_should_close(cx, move |_, cx| {
                         let _ = weak.update(cx, |bot, cx| {
@@ -122,7 +193,7 @@ impl BotView {
             .bg(rgb(BG))
             .text_color(rgb(TEXT))
             .font_family("Segoe UI")
-            .child(self.render_header(window, cx))
+            .child(self.render_header(window, cx, false))
             .child(self.render_settings_body(cx));
         if self.menu_open {
             root = root

@@ -106,6 +106,7 @@ impl BotView {
                 if event.module_id == "__behaviors" {
                     view.settings.behaviors = event.settings.clone();
                     view.save_settings();
+                    view.sync_config_tree(cx);
                     cx.notify();
                 }
             },
@@ -253,19 +254,27 @@ impl BotView {
                             .insert(event.module_id.clone(), event.settings.clone());
                     }
                     view.save_settings();
+                    view.sync_config_tree(cx);
                     cx.notify();
                 },
             ));
             self.module_pages.insert(descriptor.id.clone(), page);
         }
+        let module_names: Vec<(String, String)> = descriptors
+            .iter()
+            .map(|descriptor| (descriptor.id.clone(), descriptor.name.clone()))
+            .collect();
         self.all_module_descriptors = descriptors;
         self.plugin_descriptors = plugins;
+        self.config_page
+            .update(cx, |page, cx| page.observe_modules(module_names, cx));
         self.refresh_enabled_modules();
         self.refresh_behavior_rule_visibility(cx);
         if let Some(page) = self.module_pages.get("__plugins") {
             page.update(cx, |page, cx| page.set_locked(self.plugins_locked(), cx));
         }
-                self.catalog_ready = true;
+        self.catalog_ready = true;
+        self.apply_config_tree(cx);
     }
 
     pub(super) fn plugins_locked(&self) -> bool {
@@ -306,7 +315,7 @@ impl BotView {
         } else if self.module_descriptors.is_empty() {
             self.settings.active_module.clear();
         }
-            }
+    }
 
     pub(super) fn refresh_behavior_rule_visibility(&self, cx: &mut Context<Self>) {
         let Some(page) = self.module_pages.get("__behaviors") else {
@@ -345,7 +354,11 @@ impl BotView {
             .unwrap_or(id)
     }
 
-    pub(super) fn sync_settings_module_selector(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn sync_settings_module_selector(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if self.settings_module_selector.is_none() && self.catalog_ready {
             let choices = self
                 .module_descriptors
@@ -355,7 +368,8 @@ impl BotView {
                     name: descriptor.name.clone(),
                 })
                 .collect::<Vec<_>>();
-            let selector = cx.new(|cx| SelectState::new(choices, None, window, cx).searchable(true));
+            let selector =
+                cx.new(|cx| SelectState::new(choices, None, window, cx).searchable(true));
             self.module_subscriptions.push(cx.subscribe(
                 &selector,
                 |view, _, event: &SelectEvent<Vec<ModuleChoice>>, cx| {
@@ -389,7 +403,7 @@ impl BotView {
                 .as_ref()
                 .is_some_and(|engine| engine.is_running())
         {
-                        cx.notify();
+            cx.notify();
             return;
         }
         if !self.module_descriptors.iter().any(|module| module.id == id) {
@@ -398,7 +412,8 @@ impl BotView {
         self.settings.active_module = id.into();
         self.settings.active_behavior_profile.clear();
         self.settings_category = "General".into();
-                self.save_settings();
+        self.save_settings();
+        self.sync_config_tree(cx);
         cx.notify();
     }
 }
