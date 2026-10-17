@@ -1,6 +1,6 @@
 # Settings gaps: what the runtime still needs
 
-The settings tree (`src/bot/config_tree/`) ports DarkBot's full option list. Options marked
+The settings tree (`src/bot/config_tree/`) ports the reference implementation's full option list. Options marked
 **LIVE** have a working consumer in the shell, runtime, engine, or client.
 **PARTIAL** options are consumed when their required observations or operations are available.
 **PLANNED** options are shown and persisted per profile, but have no working consumer yet.
@@ -178,11 +178,11 @@ Per-NPC radius, priority, allow/deny, key, formation, and flags are consumed by 
 Affects:
 - `loot.npc_infos` — Npc infos (partial)
 
-### `CONDITIONS` — DarkBot condition language
+### `CONDITIONS` — condition expression language
 
 Also touches: Runtime.
 
-The editor parses supported DarkBot conditions into the engine's typed representation and reports unsupported expressions. The supported operator/value subset is intentionally bounded; adding another DarkBot condition requires a typed evaluator and validation case.
+The editor parses supported condition expressions into the engine's typed representation and reports unsupported expressions. The supported operator/value subset is intentionally bounded; adding another condition expression requires a typed evaluator and validation case.
 
 Affects:
 - `loot.sab.condition` — Other conditions (partial)
@@ -260,11 +260,11 @@ Waypoint retention and sequential/random selection are implemented. The remainin
 Affects:
 - `general.roaming.enemy_cbs_invisible` — Ignore CBS status when invisible (planned)
 
-### `CONDITIONS` — DarkBot condition language
+### `CONDITIONS` — condition expression language
 
 Also touches: Behavior engine.
 
-The editor parses supported DarkBot conditions into the engine's typed representation and reports unsupported expressions. The supported operator/value subset is intentionally bounded; adding another DarkBot condition requires a typed evaluator and validation case.
+The editor parses supported condition expressions into the engine's typed representation and reports unsupported expressions. The supported operator/value subset is intentionally bounded; adding another condition expression requires a typed evaluator and validation case.
 
 Affects:
 - `loot.sab.condition` — Other conditions (partial)

@@ -1,5 +1,5 @@
 use super::bridge::{self, BRIDGED};
-use super::darkbot;
+use super::settings;
 use super::edit::{format_number, format_value, parse_text};
 use super::filter::Filter;
 use super::gaps::{self, GAPS};
@@ -14,7 +14,7 @@ use xenomit_bot_runtime::settings::BotSettings;
 use xenomit_game_api::BehaviorRuntime;
 
 fn schema() -> Arc<Schema> {
-    Arc::new(darkbot::schema())
+    Arc::new(settings::schema())
 }
 
 struct TempDir(PathBuf);
@@ -38,8 +38,8 @@ fn store(dir: &TempDir) -> ConfigStore {
 
 // Schema ----------------------------------------------------------------------
 
-/// Every option in DarkBot's `Config.java` (paths lowercase, `@Option` only).
-const DARKBOT_OPTIONS: &[&str] = &[
+/// Every option in the reference implementation's `Config.java` (paths lowercase, `@Option` only).
+const REFERENCE_OPTIONS: &[&str] = &[
     "general.current_module",
     "general.working_map",
     "general.offensive",
@@ -154,12 +154,12 @@ const DARKBOT_OPTIONS: &[&str] = &[
 ];
 
 #[test]
-fn every_darkbot_option_exists_as_a_leaf() {
+fn every_reference_option_exists_as_a_leaf() {
     let schema = schema();
-    for path in DARKBOT_OPTIONS {
+    for path in REFERENCE_OPTIONS {
         let node = schema
             .find(path)
-            .unwrap_or_else(|| panic!("missing DarkBot option {path}"));
+            .unwrap_or_else(|| panic!("missing the reference implementation option {path}"));
         assert!(!node.is_group(), "{path} should be an option");
     }
 }
@@ -187,13 +187,13 @@ fn paths_are_unique_and_defaults_are_valid_for_their_kind() {
     }
     assert!(
         seen.len() > 150,
-        "expected the full DarkBot tree, got {}",
+        "expected the full reference tree, got {}",
         seen.len()
     );
 }
 
 #[test]
-fn labels_and_descriptions_come_from_darkbot_translations() {
+fn labels_and_descriptions_load_from_settings_catalog() {
     let schema = schema();
     let deaths = schema.find("general.safety.max_deaths").unwrap();
     assert_eq!(deaths.label, "Max deaths");
@@ -222,7 +222,7 @@ fn labels_and_descriptions_come_from_darkbot_translations() {
 }
 
 #[test]
-fn visibility_levels_match_darkbot_annotations() {
+fn visibility_levels_match_reference_metadata() {
     let schema = schema();
     let level = |path: &str| schema.find(path).unwrap().level;
     assert_eq!(
@@ -242,7 +242,7 @@ fn visibility_levels_match_darkbot_annotations() {
 }
 
 #[test]
-fn numeric_bounds_match_darkbot_annotations() {
+fn numeric_bounds_match_reference_metadata() {
     let schema = schema();
     let kind = |path: &str| schema.find(path).unwrap().kind.clone().unwrap();
     assert!(matches!(
@@ -332,7 +332,7 @@ fn gap_document_lists_every_gap() {
 // Store -----------------------------------------------------------------------
 
 #[test]
-fn set_clamps_like_darkbot_and_honours_the_disabled_sentinel() {
+fn set_clamps_and_honours_the_disabled_sentinel() {
     let dir = TempDir::new("clamp");
     let mut store = store(&dir);
     assert_eq!(
@@ -547,7 +547,7 @@ fn profiles_can_be_created_copied_switched_and_deleted() {
 // Filter ----------------------------------------------------------------------
 
 #[test]
-fn filter_applies_level_and_search_like_the_darkbot_tree() {
+fn filter_applies_level_and_search() {
     let schema = schema();
     let revive_wait = schema.find("general.safety.wait_before_revive").unwrap();
     let max_deaths = schema.find("general.safety.max_deaths").unwrap();
@@ -616,8 +616,8 @@ fn text_parsing_round_trips_every_text_backed_kind() {
         json!("all(hp-below(0.4), map(1-8))")
     );
     assert!(parse_text(&Kind::Condition, "unsupported(1)").is_err());
-    assert!(xenomit_behavior_engine::parse_darkbot_action("use-item(ammo)").is_ok());
-    assert!(xenomit_behavior_engine::parse_darkbot_action("run-shell()").is_err());
+    assert!(super::expression::parse_action_expression("use-item(ammo)").is_ok());
+    assert!(super::expression::parse_action_expression("run-shell()").is_err());
 
     assert_eq!(format_number(5.0), "5");
     assert_eq!(format_number(0.25), "0.25");
@@ -889,7 +889,7 @@ fn regenerate_docs() {
 
     let mut gaps_doc = String::from(
         "# Settings gaps: what the runtime still needs\n\n\
-         The settings tree (`src/bot/config_tree/`) ports DarkBot's full option list. Options marked\n\
+         The settings tree (`src/bot/config_tree/`) ports the reference implementation's full option list. Options marked\n\
          **LIVE** have a working consumer in the shell, runtime, engine, or client.\n\
          **PARTIAL** options are consumed when their required observations or operations are available.\n\
          **PLANNED** options are shown and persisted per profile, but have no working consumer yet.\n\n\
@@ -983,7 +983,7 @@ fn import_prefers_the_module_payload_and_fills_engine_defaults() {
         json!(0.22)
     );
     assert_eq!(store.get("general.working_map"), json!(8));
-    // Untouched keys take the engine default (500), not DarkBot's (400).
+    // Untouched keys take the engine default (500), not the reference implementation's (400).
     assert_eq!(store.get("collect.radius"), json!(500));
     assert_eq!(store.get("loot.sab.percent"), json!(0.5));
 }

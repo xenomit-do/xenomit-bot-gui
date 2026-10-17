@@ -1,4 +1,4 @@
-//! The settings tree window: DarkBot's `AdvancedConfig` in GPUI.
+//! The settings tree window in GPUI.
 //!
 //! Left: a tree of groups. Right: the selected group's options, rendered
 //! recursively with one editor per option kind. Above: search, visibility
@@ -25,7 +25,7 @@ use std::sync::Arc;
 use xenomit_bot_runtime::settings::BotSettings;
 
 use super::bridge;
-use super::darkbot;
+use super::settings;
 use super::edit::{format_value, parse_text, step_of};
 use super::filter::Filter;
 use super::gaps;
@@ -136,7 +136,7 @@ impl EventEmitter<ConfigChanged> for ConfigTreePage {}
 
 impl ConfigTreePage {
     pub(crate) fn new(dir: PathBuf, _window: &mut Window, _cx: &mut Context<Self>) -> Self {
-        let schema = Arc::new(darkbot::schema());
+        let schema = Arc::new(settings::schema());
         let mut store = ConfigStore::new(schema.clone(), dir);
         let profile = store.last_profile();
         let outcome = store.load_profile(&profile);
@@ -370,7 +370,7 @@ impl ConfigTreePage {
                 match kind {
                     Some(kind) => {
                         let validation = if col == "action" {
-                            xenomit_behavior_engine::parse_darkbot_action(text).map(|_| ())
+                            super::expression::parse_action_expression(text).map(|_| ())
                         } else {
                             Ok(())
                         };

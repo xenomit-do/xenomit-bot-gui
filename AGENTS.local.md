@@ -108,13 +108,13 @@ preserving defaults and `botd` can swap them later:
   the diameter and origin to the device-pixel grid: `paint_quad` rounds
   each bounds edge independently, so centered quads would jitter ±1 device
   pixel in size at fractional positions or display scales.
-- The live map replicates DarkBot's overlay (`MapDrawer`/`OverlayDrawer`/
+- The live map replicates the reference implementation's overlay (`MapDrawer`/`OverlayDrawer`/
   `InfosDrawer` conventions): a large centered map name — "Loading" while
   the client reports no map (`map_id = -1`, `map_status()` → `Loading`) —
   portal rings labeled with the target map, the left-edge stats column
   (`cre/h`, `uri/h`, `exp/h`, `hon/h`, `cargo`, `death`), `NC` config and
   health/shield bars bottom-left, and the locked-target bar bottom-right.
-  Ship usernames/NPC names paint above their markers (DarkBot's
+  Ship usernames/NPC names paint above their markers (the reference implementation's
   `USERNAMES`/`NPC_NAMES` flags), battle stations via `safe_places`.
   Names/targets resolve from `LiveFrame.navigation.star_system`/`portals`
   first (native captures the game's own `Map._staticConfig` +
@@ -123,7 +123,7 @@ preserving defaults and `botd` can swap them later:
   `spacemap-config` → `StarSystem::from_config_xml`, which expands the
   files' `<reference>` templates like `XMLUtils.resolveReferences`), then
   the bundled `star_map` table in `xenomit-game-api` (ported from
-  DarkBot's `StarManager`) as the offline fallback. `inject_star_catalog`
+  the reference implementation's `StarManager`) as the offline fallback. `inject_star_catalog`
   fills empty navigation on snapshot-fed frames and derives
   `PortalInfo.target_map` for portal entities from the jumpgate links.
   Deaths are counted on the `navigation.hero.killed` rising edge (plus
@@ -188,7 +188,7 @@ preserving defaults and `botd` can swap them later:
   so the OS performs the actions natively — hover styles still update through
   `WM_NCMOUSEMOVE`. Control hitboxes must not nest a button inside a
   Drag-marked parent (first match in paint order wins).
-- The window header (`render_header`) is DarkBot's single row: ☰ menu, ⚙
+- The window header (`render_header`) is the reference implementation's single row: ☰ menu, ⚙
   settings, ▶/⏸ start-stop, ⌂ map, the centered title, then tick/ping/CPU/RAM
   readouts (`process_usage`: `GetProcessTimes` deltas +
   `K32GetProcessMemoryInfo`), show/hide client, Statistics, Pin
@@ -205,7 +205,7 @@ preserving defaults and `botd` can swap them later:
   `DobotBridge.as` (rebuild with `build_bridge.ps1` then `build.ps1`), and
   the packet client rebuilds it from `AttributeBoosterUpdateCommand` (its
   timer is the soonest-expiring booster overall, not per category).
-- `live_map/` follows DarkBot's drawers (`.dbref`): no grid, oval entity
+- `live_map/` follows the reference implementation's drawers (`.dbref`): no grid, oval entity
   markers (`round_entities`), base discs of `radius` world units in
   `BASE_SPOTS` alpha, translucent `drawBackgrounded` stats/booster panels
   centered vertically, shield bar only when `max_shield > 0`.

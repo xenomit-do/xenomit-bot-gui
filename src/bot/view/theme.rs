@@ -127,7 +127,7 @@ pub(crate) fn button(
         .child(text.into())
 }
 
-// Segoe MDL2 Assets code points for the DarkBot-style header.
+// Segoe MDL2 Assets code points for the reference style header.
 pub(crate) const ICON_MENU: &str = "\u{E700}";
 
 pub(crate) const ICON_SETTINGS: &str = "\u{E713}";
@@ -143,7 +143,7 @@ pub(crate) const ICON_VIEW: &str = "\u{E7B3}";
 pub(crate) const ICON_PIN: &str = "\u{E718}";
 
 /// Square icon button for the header row; `selected` is the lighter
-/// highlight DarkBot gives an active toggle.
+/// highlight the reference implementation gives an active toggle.
 pub(crate) fn header_icon(
     id: &'static str,
     glyph: &'static str,

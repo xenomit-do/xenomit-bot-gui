@@ -55,7 +55,7 @@ pub(crate) fn parse_text(kind: &Kind, text: &str) -> Result<Value, String> {
         }
         Kind::Text => json!(text),
         Kind::Condition => {
-            xenomit_behavior_engine::parse_darkbot_condition(text)?;
+            super::expression::parse_condition_expression(text)?;
             json!(text)
         }
         Kind::Color { .. } => json!(text),

@@ -79,7 +79,7 @@ pub(super) struct BotView {
     all_module_descriptors: Vec<ModuleDescriptor>,
     plugin_descriptors: Vec<PluginDescriptor>,
     module_pages: BTreeMap<String, Entity<ModuleSettingsPage>>,
-    /// DarkBot-style settings tree (the General tab); see `config_tree/`.
+    /// Reference style settings tree (the General tab); see `config_tree/`.
     config_page: Entity<ConfigTreePage>,
     settings_module_selector: Option<Entity<SelectState<Vec<ModuleChoice>>>>,
     settings_module_selector_value: String,
@@ -179,7 +179,7 @@ pub(super) struct BotView {
     /// the countdown keeps ticking between polls.
     boosters: Vec<xenomit_game_api::BoosterState>,
     boosters_at: Instant,
-    /// Game client reloads since sign-in — DarkBot's refresh counter.
+    /// Game client reloads since sign-in — the reference implementation's refresh counter.
     reload_count: u32,
     /// When the current game client connection was established.
     last_reload: Instant,

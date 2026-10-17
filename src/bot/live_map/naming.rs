@@ -11,7 +11,7 @@ pub enum MapStatus {
     Unavailable,
 }
 
-/// Loading is exactly DarkBot's `hero.getMap().id == -1`: the shared-memory
+/// Loading is exactly the reference implementation's `hero.getMap().id == -1`: the shared-memory
 /// header publishes `map_id = -1` between maps, which decodes to
 /// `frame.map == None`. A frame past `LiveFrame`'s freshness window means no
 /// client data at all, which is not the loading screen.
@@ -48,7 +48,7 @@ pub(super) fn resolve_map_name(frame: &LiveFrame, id: i32, short: bool) -> Optio
 
 /// The centered map title: the live star-system catalog first, then the
 /// bundled static catalog, then the snapshot-reported name, then a bare
-/// `MAP <id>` fallback. While a portal jump is running DarkBot appends
+/// `MAP <id>` fallback. While a portal jump is running the reference implementation appends
 /// `→<target>`, so a jumping portal contributes its destination name.
 pub fn map_title(frame: &LiveFrame, reported: Option<&str>) -> Option<String> {
     let map = frame.map.as_ref()?;
@@ -73,10 +73,10 @@ pub fn map_title(frame: &LiveFrame, reported: Option<&str>) -> Option<String> {
     })
 }
 
-/// The destination-map name drawn beside a portal, matching DarkBot: the
+/// The destination-map name drawn beside a portal, matching the reference implementation: the
 /// navigation payload knows the jumpgate's target directly, the bundled
 /// star map resolves by position/portal type otherwise. `None` when the
-/// target is unknown — DarkBot draws no label then.
+/// target is unknown — the reference implementation draws no label then.
 pub fn portal_label(frame: &LiveFrame, portal: &LiveEntity) -> Option<String> {
     let map = frame.map.as_ref()?;
     let target = frame

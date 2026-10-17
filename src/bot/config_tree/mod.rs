@@ -1,7 +1,8 @@
-//! DarkBot-style settings tree: schema, values, profiles, runtime bridge and
-//! the GPUI page. See `docs/SETTINGS_TREE.md` and `docs/SETTINGS_GAPS.md`.
+//! Settings tree: schema, values, profiles, runtime bridge and the GPUI page.
+//! See `docs/SETTINGS_TREE.md` and `docs/SETTINGS_GAPS.md`.
 mod bridge;
-mod darkbot;
+mod expression;
+mod settings;
 mod edit;
 mod filter;
 mod gaps;

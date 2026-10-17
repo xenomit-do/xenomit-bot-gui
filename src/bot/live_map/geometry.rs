@@ -36,7 +36,7 @@ pub fn screen_to_world(
 }
 
 /// Zoom around a world-space camera center. The settings value follows the
-/// DarkBot percentage convention: `1.0` shows the full map and smaller values
+/// The reference percentage convention: `1.0` shows the full map and smaller values
 /// zoom in while keeping the camera centered on the hero.
 pub fn world_to_screen_zoom(
     bounds: Bounds<Pixels>,

@@ -10,7 +10,7 @@ pub(super) fn obstacle_color_key(kind: ObstacleKind) -> &'static str {
     }
 }
 
-/// Paint one full map frame into `bounds` the way DarkBot's `MapDrawer`
+/// Paint one full map frame into `bounds` the way the reference implementation's `MapDrawer`
 /// does: the stretched map on a flat background, portals, bases and battle
 /// stations, then dynamic entities (oval markers), the hero trail/path and
 /// hero, and finally the info/overlay text — refresh counter, module status,
@@ -419,7 +419,7 @@ pub fn paint_live_map(
                 );
             }
 
-            // Hero trail — a per-segment alpha ramp like DarkBot's trail.
+            // Hero trail — a per-segment alpha ramp like the reference implementation's trail.
             let trail_points: Vec<Point<Pixels>> =
                 trail.points().map(|(x, y)| project(x, y)).collect();
             let segments = trail_points.len().saturating_sub(1);
@@ -608,7 +608,7 @@ pub fn paint_live_map(
     }
 
     // Hero name + health/shield bar at the bottom-left, target mirrored on
-    // the right — the DarkBot `InfosDrawer` layout.
+    // the right — using the reference `InfosDrawer` layout.
     let bottom = top + f32::from(bounds.size.height);
     let mid_x = left + f32::from(bounds.size.width) / 2.0;
     let bar_width = f32::from(bounds.size.width) / 2.0 - 20.0;

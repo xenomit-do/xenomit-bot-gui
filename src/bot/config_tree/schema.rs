@@ -1,6 +1,6 @@
 //! Typed description of the settings tree.
 //!
-//! This is the Rust counterpart of DarkBot's annotated `Config` class: a tree
+//! This is the Rust counterpart of the reference implementation's annotated `Config` class: a tree
 //! of groups and options, each with a kind (the "annotation"), a default, a
 //! visibility level and a translation-derived label/description. The tree is
 //! pure data; `store` holds values, `page` renders it and `bridge` pushes the
@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
-/// DarkBot's `@Visibility(Level)`. A level shows every option at or below it.
+/// the reference implementation's `@Visibility(Level)`. A level shows every option at or below it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum Level {
     #[default]
@@ -176,7 +176,7 @@ pub(crate) enum Kind {
     Color {
         alpha: bool,
     },
-    /// DarkBot condition expression (stored as its source text).
+    /// Condition expression (stored as its source text).
     Condition,
     Table(Box<TableSpec>),
     Json,
@@ -303,8 +303,8 @@ pub(crate) fn range(min: f64, max: f64) -> Value {
 
 // Translations ----------------------------------------------------------------
 
-/// DarkBot's `strings_en.properties`, restricted to `config.*` keys.
-const STRINGS: &str = include_str!("darkbot_en.properties");
+/// The reference `strings_en.properties`, restricted to `config.*` keys.
+const STRINGS: &str = include_str!("settings_en.properties");
 
 fn strings() -> &'static BTreeMap<String, String> {
     static MAP: OnceLock<BTreeMap<String, String>> = OnceLock::new();
@@ -435,7 +435,7 @@ fn finalize(node: &mut Node, parent: &str) {
     }
 }
 
-/// `loot.npc_infos` -> `loot.npc_table` (DarkBot's `@Configuration` key).
+/// `loot.npc_infos` -> `loot.npc_table` (the reference implementation's `@Configuration` key).
 pub(crate) fn table_i18n_base(path: &str) -> String {
     path.strip_suffix("_infos")
         .map(|base| format!("{base}_table"))
@@ -506,7 +506,7 @@ pub(crate) fn remove_path(root: &mut Value, path: &str) {
 
 impl Kind {
     /// Coerces an arbitrary JSON value into a valid one for this kind,
-    /// mirroring DarkBot's `ValueHandler.validate` (clamp rather than reject).
+    /// mirroring the reference implementation's `ValueHandler.validate` (clamp rather than reject).
     /// `None` means the value cannot be represented at all.
     pub(crate) fn normalize(&self, value: &Value) -> Option<Value> {
         match self {

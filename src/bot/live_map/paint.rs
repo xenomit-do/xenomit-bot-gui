@@ -1,6 +1,6 @@
 use super::*;
 
-/// Shape one Consolas run — the font family matches DarkBot's map fonts.
+/// Shape one Consolas run — the font family matches the reference implementation's map fonts.
 pub(super) fn shape_text(
     window: &mut Window,
     text: &str,
@@ -188,7 +188,7 @@ pub(super) fn paint_ellipse(
     }
 }
 
-/// DarkBot's `drawHealth`: a darker health background, the nanohull prefix
+/// the reference implementation's `drawHealth`: a darker health background, the nanohull prefix
 /// in yellow, hp in green with a centered `hp/max` readout, then — only for
 /// ships that have a shield — a shield bar directly below.
 #[allow(clippy::too_many_arguments)]
@@ -272,7 +272,7 @@ pub(super) fn paint_health_bar(
     }
 }
 
-/// A DarkBot `drawBackgrounded` panel: translucent, sized to its lines and
+/// A panel using the reference `drawBackgrounded` layout: translucent, sized to its lines and
 /// vertically centered on the canvas, flush with the left or right edge.
 pub(super) struct BackgroundedBlock {
     pub(super) left: f32,

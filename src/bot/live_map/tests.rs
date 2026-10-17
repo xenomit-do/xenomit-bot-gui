@@ -237,7 +237,7 @@ fn portal_label_resolves_navigation_and_static_targets() {
         ..LiveEntity::default()
     };
     assert_eq!(portal_label(&frame, &portal).as_deref(), Some("GG α"));
-    // Nothing known -> no label, matching DarkBot.
+    // Nothing known -> no label, matching the reference implementation.
     let portal = LiveEntity {
         id: 3,
         kind: LiveKind::Portal,
@@ -320,7 +320,7 @@ fn fetched_catalog_fills_names_and_portal_targets() {
 }
 
 #[test]
-fn digit_grouping_matches_darkbot_format() {
+fn digit_grouping_matches_grouped_format() {
     assert_eq!(format_amount(0.0), "0");
     assert_eq!(format_amount(551_375.0), "551 375");
     assert_eq!(format_amount(24_291.4), "24 291");

@@ -36,7 +36,7 @@ impl ModuleSettingsPage {
                                     );
                                 });
                             })
-                            .child(darkbot_checkbox_indicator(checked)),
+                            .child(checkbox_indicator(checked)),
                     )
                     .child(label(&field.label, TEXT, 12.0));
             }
@@ -230,7 +230,7 @@ impl ModuleSettingsPage {
                                         page.set_value(&key, value, cx);
                                     });
                                 })
-                                .child(darkbot_checkbox_indicator(checked)),
+                                .child(checkbox_indicator(checked)),
                         ),
                     )
                     .child(div().w(px(116.0)).child(label("—", FAINT, 12.0))),
@@ -255,10 +255,10 @@ fn field_label(text: &str) -> gpui_kit::Div {
         .child(text.to_string())
 }
 
-/// DarkBot's settings use a compact, nearly square native-style checkbox.
+/// the reference implementation's settings use a compact, nearly square native-style checkbox.
 /// The semantic control owns keyboard and accessibility behavior; this child
 /// owns only its flat visual indicator.
-fn darkbot_checkbox_indicator(checked: bool) -> impl IntoElement {
+fn checkbox_indicator(checked: bool) -> impl IntoElement {
     CheckboxIndicator::new()
         .checked(checked)
         .w(px(13.0))

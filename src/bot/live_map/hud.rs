@@ -29,7 +29,7 @@ pub struct MapHud {
     pub sid: String,
     /// Right-edge booster lines: text and color, in display order.
     pub boosters: Vec<(String, u32)>,
-    /// DarkBot-style display switches (`USERNAMES`, `ZONES`, and so on).
+    /// Reference style display switches (`USERNAMES`, `ZONES`, and so on).
     pub display_flags: BTreeSet<String>,
     /// RGB values read from `bot_settings.map_display.cs`.
     pub colors: BTreeMap<String, u32>,
@@ -63,7 +63,7 @@ impl MapHud {
     }
 }
 
-/// One DarkBot-style name + health/shield bar pair.
+/// One reference style name + health/shield bar pair.
 #[derive(Clone, Debug)]
 pub struct BarHud {
     pub name: String,
@@ -87,7 +87,7 @@ pub struct BarHud {
     pub text_color: u32,
 }
 
-/// `###,###,###` — DarkBot's stat format, space-grouped like its UI.
+/// `###,###,###` — the reference implementation's stat format, space-grouped like its UI.
 pub fn format_amount(value: f64) -> String {
     let negative = value < 0.0;
     let digits = value.abs().round() as u64;

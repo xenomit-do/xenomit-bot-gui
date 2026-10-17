@@ -1,4 +1,4 @@
-//! Search and visibility filtering, the Rust twin of DarkBot's `TreeFilter`.
+//! Search and visibility filtering, the Rust twin of the reference implementation's `TreeFilter`.
 use super::schema::{Level, Node};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

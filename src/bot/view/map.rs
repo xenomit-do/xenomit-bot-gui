@@ -5,7 +5,7 @@ use super::*;
 /// Dragging on the live map issues a navigation call at most this often.
 pub(super) const MAP_NAV_DRAG_INTERVAL: Duration = Duration::from_millis(100);
 
-/// DarkBot's `BoosterProxy.Booster.toSimpleString`: remaining time, boost
+/// the reference implementation's `BoosterProxy.Booster.toSimpleString`: remaining time, boost
 /// percentage and category, colored by category. `age` is how long ago the
 /// booster was observed, so the timer keeps counting down between polls.
 pub(super) fn booster_line(
@@ -41,8 +41,8 @@ pub(super) fn booster_line(
     Some((format!("{time}{:.0}% {name}", booster.percent), color))
 }
 
-/// DarkBot's `Time.toString`: `mm:ss` under an hour, `hh:mm:ss` beyond.
-pub(super) fn darkbot_time(ms: u64) -> String {
+/// the reference implementation's `Time.toString`: `mm:ss` under an hour, `hh:mm:ss` beyond.
+pub(super) fn format_duration(ms: u64) -> String {
     let secs = ms / 1000;
     if secs >= 3600 {
         format!(
@@ -139,7 +139,7 @@ impl BotView {
         // Map dimensions drive the world transform; prefer the live frame
         // and fall back to the last snapshot or the stock 1-1 dimensions.
         let (map_width, map_height) = self.map_dimensions();
-        // DarkBot-style overlays painted inside the canvas: the centered
+        // Reference style overlays painted inside the canvas: the centered
         // map name ("Loading" between maps), the left statistics column,
         // hero configuration + health bars, and the locked-target bar.
         let now_ms = statistics::now_ms();
@@ -252,7 +252,7 @@ impl BotView {
                     } else {
                         "WAITING"
                     },
-                    darkbot_time(now_ms.saturating_sub(stats.started)),
+                    format_duration(now_ms.saturating_sub(stats.started)),
                 );
                 let cargo = self.hero_field(&["cargo"]);
                 let cargo_max = self.hero_field(&["maxCargo"]);
@@ -293,11 +293,11 @@ impl BotView {
             "{} - {}/{}",
             self.reload_count,
             if self.behavior_running {
-                darkbot_time(self.last_reload.elapsed().as_millis() as u64)
+                format_duration(self.last_reload.elapsed().as_millis() as u64)
             } else {
                 "00".to_owned()
             },
-            darkbot_time(refresh_minutes * 60_000),
+            format_duration(refresh_minutes * 60_000),
         );
         if self.behavior_running && !self.activity.is_empty() {
             hud.module_status = self.activity.lines().map(str::to_owned).collect();
@@ -319,8 +319,8 @@ impl BotView {
                     Some(end) if end <= now_secs => "EXPIRED".to_owned(),
                     Some(end) => format!(
                         "OK {}/{}",
-                        darkbot_time(now_secs.saturating_sub(self.session_started_secs) * 1000),
-                        darkbot_time(end.saturating_sub(self.session_started_secs) * 1000),
+                        format_duration(now_secs.saturating_sub(self.session_started_secs) * 1000),
+                        format_duration(end.saturating_sub(self.session_started_secs) * 1000),
                     ),
                     None => "OK".to_owned(),
                 });

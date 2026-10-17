@@ -1,6 +1,6 @@
-//! The settings tree itself: a port of DarkBot's `Config.java` (every group,
+//! The settings tree itself: a port of the reference implementation's `Config.java` (every group,
 //! option, default, bound and visibility level), followed by a `xenomit`
-//! group holding the runtime options DarkBot has no equivalent for.
+//! group holding the runtime options the reference implementation has no equivalent for.
 //!
 //! Each option declares its runtime support (`live`/`partial`/`gap`). The
 //! `bridge` module implements the live ones; the gap ids are documented in
@@ -206,7 +206,7 @@ fn loot() -> Node {
                         .sup(live("sab_target_shield_min")),
                     opt("condition", Kind::Condition, json!(""))
                         .lvl(Advanced)
-                        .sup(partial("DarkBot condition subset", "CONDITIONS")),
+                        .sup(partial("condition expression subset", "CONDITIONS")),
                 ],
             ),
             grp(
@@ -693,14 +693,14 @@ fn bot_settings() -> Node {
     )
 }
 
-/// DarkBot keeps this hidden (`/*@Option("Extra actions")*/`); it is listed
+/// the reference implementation keeps this hidden (`/*@Option("Extra actions")*/`); it is listed
 /// here at developer level so the full `Config` is reachable.
 fn extra() -> Node {
     grp(
         "extra",
         vec![
             opt("condition", Kind::Condition, json!(""))
-                .sup(partial("DarkBot condition subset", "EXTRA-ACTIONS")),
+                .sup(partial("condition expression subset", "EXTRA-ACTIONS")),
             opt(
                 "action_infos",
                 table(
@@ -727,7 +727,7 @@ fn extra() -> Node {
     .lvl(Developer)
 }
 
-/// Runtime options with no DarkBot equivalent (the "if not more" part).
+/// Runtime options without a reference equivalent (the "if not more" part).
 /// Everything here maps one-to-one onto an engine module setting.
 fn xenomit() -> Node {
     fn feature(key: &str, default: bool, target: &'static str, label: &str) -> Node {

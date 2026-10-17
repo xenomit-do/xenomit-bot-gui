@@ -1,4 +1,4 @@
-// DarkBot ColorScheme palette.
+// Reference ColorScheme palette.
 pub(super) const COLOR_TEXT: u32 = 0xf2f2f2;
 
 pub(super) const COLOR_TEXT_DARK: u32 = 0xbbbbbb;
@@ -40,7 +40,7 @@ pub(super) const ALPHA_TEXT_BG: f32 = 128.0 / 255.0;
 /// Unbuilt battle-station asteroids.
 pub(super) const COLOR_METEROID: u32 = 0xaaaaaa;
 
-/// DarkBot's `FONTS.MID` family.
+/// the reference implementation's `FONTS.MID` family.
 pub(super) const FONT_MID: &str = "Segoe UI";
 
 pub(super) const COLOR_OTHER: u32 = 0x1647a1;

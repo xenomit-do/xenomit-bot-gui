@@ -1,5 +1,5 @@
 //! Remaining client/runtime limitations for settings-tree options.
-//! Every `Support::gap`/`partial` in `darkbot.rs` names one of these ids;
+//! Every `Support::gap`/`partial` in `settings.rs` names one of these ids;
 //! `docs/SETTINGS_GAPS.md` is generated from this table.
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -80,9 +80,9 @@ pub(crate) const GAPS: &[Gap] = &[
     },
     Gap {
         id: "CONDITIONS",
-        title: "DarkBot condition language",
+        title: "condition expression language",
         layers: &[Engine, Runtime],
-        needs: "The editor parses supported DarkBot conditions into the engine's typed representation and reports unsupported expressions. The supported operator/value subset is intentionally bounded; adding another DarkBot condition requires a typed evaluator and validation case.",
+        needs: "The editor parses supported condition expressions into the engine's typed representation and reports unsupported expressions. The supported operator/value subset is intentionally bounded; adding another condition expression requires a typed evaluator and validation case.",
     },
     Gap {
         id: "GROUP",
