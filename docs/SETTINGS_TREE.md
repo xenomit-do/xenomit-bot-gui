@@ -1,19 +1,19 @@
 # Settings tree
 
-The **General** tab is based on the reference settings model. The old per-module pages remain under
-the **Modules** tab (module settings, behaviors, plugins).
+The **General** tab is a port of Legacy's `AdvancedConfig` (see `legacy-settings-map.md` in the
+workspace root for the reference analysis). The old per-module pages remain under the **Modules**
+tab (module settings, behaviors, plugins).
 
 Code: `src/bot/config_tree/`.
 
-| File | Reference counterpart | Role |
+| File | Legacy counterpart | Role |
 |---|---|---|
 | `schema.rs` | `@Option`, `@Number`, `@Percentage`, `@Dropdown`, `@Table`, `@Tag`, `@Visibility`, `ValueHandler.validate` | Typed tree: `Kind` (the annotation), defaults, `Level`, translations, clamping. |
-| `settings.rs` | `Config.java` | The tree itself: every reference group and option with its default, bounds and level, plus a `xenomit` group. |
-| `settings_en.properties` | `strings_en.properties` (`config.*`) | Labels and descriptions, looked up by `config.<path>` / `.desc`. |
+| `legacy.rs` | `Config.java` | The tree itself: every Legacy group and option with its default, bounds and level, plus a `xenomit` group. |
+| `legacy_en.properties` | `strings_en.properties` (`config.*`) | Labels and descriptions, looked up by `config.<path>` / `.desc`. |
 | `store.rs` | `ConfigManager` | Values, profiles (`config.json`, `configs/<name>.json`), `_old` backups, load-failure guard. |
 | `filter.rs` | `TreeFilter` | Search (label, description, path) and visibility level. |
 | `edit.rs` | editors | Text <-> value conversion for text-backed editors. |
-| `expression.rs` | condition and action expressions | Parses and validates editor input. |
 | `page.rs`, `page/render.rs` | `AdvancedConfig`, `ConfigTree`, `*Editor` | The GPUI page. |
 | `bridge.rs` | `ConfigEntity`, `ConfigHandler` | Pushes runtime-backed options into `BotSettings`; seeds a new profile from it. |
 | `gaps.rs` | — | Catalogue of what the runtime still lacks (see `SETTINGS_GAPS.md`). |
@@ -38,10 +38,10 @@ unknown keys survive a save.
   ship config (Config 1/2 + formation key), player tag, colour with swatch, condition, JSON and
   tables (filter, add, remove, per-column editors, NPC extra-flag chips).
 
-The editor adds status chips and filtering, per-option and per-group reset, remembered level, a
-`xenomit` group exposing engine options without a reference equivalent (pickup radius, ammo and
-ability item ids, tick override, API backends, behavior-config override), and a generated option
-reference (`SETTINGS_OPTIONS.md`).
+Beyond Legacy: status chips and filter, per-option and per-group reset, remembered level, a
+`xenomit` group exposing the engine options Legacy has no equivalent for (pickup radius, ammo
+and ability item ids, tick override, API backends, behavior-config override), and a generated
+option reference (`SETTINGS_OPTIONS.md`).
 
 ## Runtime support
 
@@ -59,8 +59,8 @@ number.
 
 ### How values flow
 
-- Edit in the tree -> `ConfigStore::set` (clamps like the reference implementation) -> save ->
-  `ConfigChanged` -> `BotView::apply_config_tree` -> `bridge::apply` -> `save_settings` (which updates a running
+- Edit in the tree -> `ConfigStore::set` (clamps like Legacy) -> save -> `ConfigChanged` ->
+  `BotView::apply_config_tree` -> `bridge::apply` -> `save_settings` (which also updates a running
   module through `engine.update`).
 - **Only the active module's payload is written.** Other modules keep their values until they are
   activated.
@@ -69,8 +69,7 @@ number.
   refused while a run is active.
 - **Seeding.** A profile with no file is seeded once the module catalog is known: values come from
   the active module's payload with the descriptor's defaults filled in, so untouched options take
-  the engine's value, not the reference implementation's. Nothing is written to `BotSettings`
-  before that.
+  the engine's value, not Legacy's. Nothing is written to `BotSettings` before that.
 - **Edits made on the Modules tab** re-import into the tree (`sync_config_tree`), so the two never
   disagree.
 - **Tables.** `loot.npc_infos` and `collect.box_infos` are the authority for `BotSettings.npcs` /
@@ -80,9 +79,9 @@ number.
 
 ## Adding an option
 
-1. Add `opt("name", kind, default)` to the right group in `settings.rs`, with `.lvl(..)` if it is not
+1. Add `opt("name", kind, default)` to the right group in `legacy.rs`, with `.lvl(..)` if it is not
    Basic and `.sup(live(..) | partial(..) | gap("ID"))`.
-2. Add `config.<path>` and `config.<path>.desc` to `settings_en.properties` (or `.label()/.desc()`).
+2. Add `config.<path>` and `config.<path>.desc` to `legacy_en.properties` (or `.label()/.desc()`).
 3. If live/partial: add it to `bridge::BRIDGED` plus `DIRECT`, `FLAGS` or a custom branch in
    `apply` and `import`.
 4. If it needs a new gap, add an entry to `gaps.rs`.
@@ -95,5 +94,5 @@ number.
   layout has not been checked on screen (the settings window needs an authenticated session).
 - Hotkeys use a key-capture box (click, press the key; Backspace/Delete clears, Esc cancels). Keys are stored as one character or a name (`F1`, `Enter`, `Up`, ...; `config_tree/keys.rs`). Modifier combinations are not captured.
 - Table cells for numbers/text/keys are inputs; there is no drag-resize of columns.
-- `settings_en.properties` is copied from the reference checkout. Confirm its licence
+- `legacy_en.properties` is copied from the Legacy reference checkout. Confirm its licence
   allows redistribution before publishing.

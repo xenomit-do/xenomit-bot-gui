@@ -10,6 +10,15 @@ pub(super) fn obstacle_color_key(kind: ObstacleKind) -> &'static str {
     }
 }
 
+pub(super) fn obstacle_color_key(kind: ObstacleKind) -> &'static str {
+    match kind {
+        ObstacleKind::NoAccess => "safety",
+        ObstacleKind::Mine => "mines",
+        ObstacleKind::Cbs => "bases",
+        ObstacleKind::Radiation => "radiation",
+    }
+}
+
 /// Paint one full map frame into `bounds` the way the reference implementation's `MapDrawer`
 /// does: the stretched map on a flat background, portals, bases and battle
 /// stations, then dynamic entities (oval markers), the hero trail/path and

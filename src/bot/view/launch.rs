@@ -1,6 +1,8 @@
 //! Authenticated client launch, child-process logging and executable lookup.
+//! Flash can also run inside this process through `xenomit_flash.dll`.
 
 use super::*;
+use xenomit_game_api::{FlashInProcClient, FlashInProcConfig};
 
 pub(super) struct LaunchResult {
     pub(super) session: Session,
@@ -12,6 +14,121 @@ pub(super) struct LaunchResult {
     /// CDN-fetched map catalog; `None` when unreachable — the bundled
     /// `star_map` table remains the fallback.
     pub(super) star_catalog: Option<StarSystem>,
+    /// The Flash host running inside this process, when in-process mode is on.
+    pub(super) flash_host: Option<Arc<FlashInProcClient>>,
+}
+
+/// Collects the API launch settings consumed by the Flash launcher, plus the
+/// performance FPS cap (`max_fps`, 0 = game default).
+pub(super) fn game_api_options(config_tree: &serde_json::Value) -> serde_json::Value {
+    let mut options = config_tree
+        .pointer("/bot_settings/api_config")
+        .cloned()
+        .unwrap_or_default();
+    if let (Some(map), Some(fps)) = (
+        options.as_object_mut(),
+        config_tree.pointer("/bot_settings/performance/max_fps"),
+    ) {
+        map.insert("max_fps".into(), fps.clone());
+    }
+    options
+}
+
+/// Whether Flash runs inside this process (InProcessPlayer model) instead of the
+/// separate `xenomit_flash_client.exe`. `XENOMIT_FLASH_INPROC=1|0` overrides
+/// the `api_config.flash_in_process` setting. Windows only.
+pub(super) fn flash_in_process(api_options: &serde_json::Value) -> bool {
+    if !cfg!(windows) {
+        return false;
+    }
+    match std::env::var("XENOMIT_FLASH_INPROC").as_deref() {
+        Ok("1") => true,
+        Ok("0") => false,
+        _ => api_options
+            .get("flash_in_process")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false),
+    }
+}
+
+/// Flash launch options shared by the exe and the in-process host.
+pub(super) struct FlashLaunchOptions {
+    pub(super) width: u64,
+    pub(super) height: u64,
+    pub(super) quality: &'static str,
+    pub(super) wmode: &'static str,
+    pub(super) hidden: bool,
+    pub(super) max_fps: u8,
+}
+
+impl FlashLaunchOptions {
+    pub(super) fn from_api_options(api_options: &serde_json::Value) -> Self {
+        let width = api_options
+            .get("width")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(1280)
+            .clamp(320, 7680);
+        let height = api_options
+            .get("height")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(800)
+            .clamp(240, 4320);
+        let quality = match api_options
+            .get("game_quality")
+            .and_then(serde_json::Value::as_str)
+        {
+            Some("medium") => "medium",
+            Some("high") => "high",
+            _ => "low",
+        };
+        let wmode = if api_options
+            .get("enforce_hw_accel")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(true)
+        {
+            "direct"
+        } else {
+            "window"
+        };
+        let hidden = api_options
+            .get("fully_hide_api")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(true)
+            && std::env::var("XENOMIT_FLASH_KEEP_VISIBLE").as_deref() != Ok("1");
+        let max_fps = api_options
+            .get("max_fps")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0)
+            .min(100) as u8;
+        Self {
+            width,
+            height,
+            quality,
+            wmode,
+            hidden,
+            max_fps,
+        }
+    }
+}
+
+type ClientLogs = Arc<Mutex<VecDeque<String>>>;
+
+fn open_client_log() -> Result<(Arc<Mutex<File>>, ClientLogs), String> {
+    let log_path = client_log_path();
+    if let Some(parent) = log_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("Could not create the client log directory: {error}"))?;
+    }
+    let log_file = OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(&log_path)
+        .map_err(|error| format!("Could not open the client log file: {error}"))?;
+    Ok((
+        Arc::new(Mutex::new(log_file)),
+        Arc::new(Mutex::new(VecDeque::new())),
+    ))
 }
 
 /// Collects the API launch settings consumed by the Flash launcher.
@@ -63,6 +180,7 @@ pub(super) fn authenticate_and_launch(
                 bridge: Some(packet_client::connect(session, statistics).await?),
                 client_logs: Arc::new(Mutex::new(VecDeque::new())),
                 star_catalog,
+                flash_host: None,
             }),
         }
     })
@@ -77,24 +195,15 @@ pub(super) async fn launch_game_client(
     api_options: serde_json::Value,
     locale: String,
 ) -> Result<LaunchResult, String> {
+    if kind == ClientKind::Flash && flash_in_process(&api_options) {
+        return launch_flash_in_process(session, flash_backend, statistics, api_options, locale);
+    }
     let executable = if kind == ClientKind::Flash {
         flash_client_executable()?
     } else {
         client_executable()?
     };
-    let log_path = client_log_path();
-    if let Some(parent) = log_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|error| format!("Could not create the client log directory: {error}"))?;
-    }
-    let log_file = OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .write(true)
-        .open(&log_path)
-        .map_err(|error| format!("Could not open the client log file: {error}"))?;
-    let log_file = Arc::new(Mutex::new(log_file));
-    let client_logs = Arc::new(Mutex::new(VecDeque::new()));
+    let (log_file, client_logs) = open_client_log()?;
     record_client_log(
         &client_logs,
         &log_file,
@@ -118,49 +227,24 @@ pub(super) async fn launch_game_client(
         } else {
             "native"
         });
-        let width = api_options
-            .get("width")
-            .and_then(serde_json::Value::as_u64)
-            .unwrap_or(1280)
-            .clamp(320, 7680);
-        let height = api_options
-            .get("height")
-            .and_then(serde_json::Value::as_u64)
-            .unwrap_or(800)
-            .clamp(240, 4320);
-        let quality = api_options
-            .get("game_quality")
-            .and_then(serde_json::Value::as_str)
-            .filter(|quality| matches!(*quality, "low" | "medium" | "high"))
-            .unwrap_or("low");
-        let wmode = if api_options
-            .get("enforce_hw_accel")
-            .and_then(serde_json::Value::as_bool)
-            .unwrap_or(true)
-        {
-            "direct"
-        } else {
-            "window"
-        };
+        let options = FlashLaunchOptions::from_api_options(&api_options);
         command
             .arg("--width")
-            .arg(width.to_string())
+            .arg(options.width.to_string())
             .arg("--height")
-            .arg(height.to_string())
+            .arg(options.height.to_string())
             .arg("--quality")
-            .arg(quality)
+            .arg(options.quality)
             .arg("--wmode")
-            .arg(wmode);
+            .arg(options.wmode);
         command.arg("--launch-stdin");
         if cfg!(windows) {
             command.arg("--name").arg("Xenomit Flash Client");
-            if api_options
-                .get("fully_hide_api")
-                .and_then(serde_json::Value::as_bool)
-                .unwrap_or(true)
-                && std::env::var("XENOMIT_FLASH_KEEP_VISIBLE").as_deref() != Ok("1")
-            {
+            if options.hidden {
                 command.args(["--hidden", "--hidden-bootstrap", "draw"]);
+            }
+            if options.max_fps > 0 {
+                command.arg("--max-fps").arg(options.max_fps.to_string());
             }
             if let Some(ocx) = std::env::var_os("XENOMIT_FLASH_OCX_PATH") {
                 let ocx = PathBuf::from(ocx);
@@ -284,6 +368,96 @@ pub(super) async fn launch_game_client(
         bridge: Some(bridge),
         client_logs,
         star_catalog: None,
+        flash_host: None,
+    })
+}
+
+/// Start Flash inside this process through `xenomit_flash.dll`: the same
+/// bootstrap records and options as the exe, passed in memory. The host runs
+/// on its own STA thread; there is no child process or pipe.
+fn launch_flash_in_process(
+    session: Session,
+    flash_backend: FlashBackend,
+    statistics: SharedStats,
+    api_options: serde_json::Value,
+    locale: String,
+) -> Result<LaunchResult, String> {
+    let (log_file, client_logs) = open_client_log()?;
+    let bootstrap = flash_bootstrap(&session, &api_options, &locale)?;
+    let options = FlashLaunchOptions::from_api_options(&api_options);
+    record_client_log(
+        &client_logs,
+        &log_file,
+        "controller",
+        "Starting the in-process Flash host (xenomit_flash.dll)",
+    );
+    {
+        let client_logs = Arc::clone(&client_logs);
+        let log_file = Arc::clone(&log_file);
+        let statistics = statistics.clone();
+        xenomit_game_api::set_flash_log_sink(Some(Arc::new(move |level, line| {
+            if let Ok(mut stats) = statistics.lock() {
+                stats.client_line(line);
+            }
+            let source = if level == 0 { "flash" } else { "flash-error" };
+            record_client_log(&client_logs, &log_file, source, line);
+        })));
+    }
+    let ocx_path = match std::env::var_os("XENOMIT_FLASH_OCX_PATH") {
+        Some(ocx) => {
+            let ocx = PathBuf::from(ocx);
+            if !ocx.is_file() {
+                return Err(format!(
+                    "XENOMIT_FLASH_OCX_PATH is not a file: {}",
+                    ocx.display()
+                ));
+            }
+            Some(ocx.to_string_lossy().into_owned())
+        }
+        None => None,
+    };
+    let config = FlashInProcConfig {
+        movie: bootstrap.movie,
+        base_url: bootstrap.base_url,
+        sid: session.sid.clone(),
+        flash_vars: bootstrap.flash_vars,
+        width: bootstrap.width as i32,
+        height: bootstrap.height as i32,
+        backend: if flash_backend == FlashBackend::NativeMemory {
+            "native"
+        } else {
+            "cached"
+        }
+        .into(),
+        quality: Some(options.quality.into()),
+        wmode: Some(options.wmode.into()),
+        ocx_path,
+        title: Some("Xenomit Flash Client".into()),
+        hidden: options.hidden,
+        hidden_draw_bootstrap: options.hidden,
+        max_fps: options.max_fps,
+        ..FlashInProcConfig::default()
+    };
+    let host = xenomit_game_api::start_flash_inproc(&config)
+        .map_err(|error| format!("Could not start the in-process Flash host: {error}"))?;
+    record_client_log(
+        &client_logs,
+        &log_file,
+        "controller",
+        "In-process Flash host started",
+    );
+    let bridge: Arc<dyn GameClient> = host.clone();
+    Ok(LaunchResult {
+        session,
+        statistics,
+        child: None,
+        // The host shares this process; the PID keeps the window controls
+        // and the account panel populated.
+        pid: Some(std::process::id()),
+        bridge: Some(bridge),
+        client_logs,
+        star_catalog: None,
+        flash_host: Some(host),
     })
 }
 
@@ -373,6 +547,33 @@ pub(super) fn flash_launch_input(
     api_options: &serde_json::Value,
     locale: &str,
 ) -> Result<String, String> {
+    let bootstrap = flash_bootstrap(session, api_options, locale)?;
+    Ok(format!(
+        "{}\n{}\n{}\n{}\n{}\n{}\n",
+        bootstrap.movie,
+        bootstrap.base_url,
+        session.sid,
+        bootstrap.flash_vars,
+        bootstrap.width,
+        bootstrap.height
+    ))
+}
+
+/// The Flash bootstrap records apart from the SID, which callers take from
+/// the session so it is copied only where it is needed.
+pub(super) struct FlashBootstrap {
+    pub(super) movie: String,
+    pub(super) base_url: String,
+    pub(super) flash_vars: String,
+    pub(super) width: u64,
+    pub(super) height: u64,
+}
+
+pub(super) fn flash_bootstrap(
+    session: &Session,
+    api_options: &serde_json::Value,
+    locale: &str,
+) -> Result<FlashBootstrap, String> {
     let movie = session
         .preloader_url
         .as_deref()
@@ -417,10 +618,13 @@ pub(super) fn flash_launch_input(
     {
         return Err("Flash bootstrap contains an invalid record".into());
     }
-    Ok(format!(
-        "{movie}\n{instance}\n{}\n{vars}\n{}\n{}\n",
-        session.sid, width, height
-    ))
+    Ok(FlashBootstrap {
+        movie: movie.to_owned(),
+        base_url: instance,
+        flash_vars: vars,
+        width,
+        height,
+    })
 }
 
 pub(super) fn flash_client_executable() -> Result<PathBuf, String> {

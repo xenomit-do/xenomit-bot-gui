@@ -29,7 +29,7 @@ pub struct MapHud {
     pub sid: String,
     /// Right-edge booster lines: text and color, in display order.
     pub boosters: Vec<(String, u32)>,
-    /// Reference style display switches (`USERNAMES`, `ZONES`, and so on).
+    /// Legacy-style display switches (`USERNAMES`, `ZONES`, and so on).
     pub display_flags: BTreeSet<String>,
     /// RGB values read from `bot_settings.map_display.cs`.
     pub colors: BTreeMap<String, u32>,
@@ -47,6 +47,20 @@ pub struct MapHud {
     pub developer_details: Vec<String>,
     /// Custom background-image opacity, 0..1.
     pub background_opacity: f32,
+}
+
+impl MapHud {
+    pub fn enabled(&self, name: &str) -> bool {
+        self.display_flags.contains(name)
+    }
+
+    pub fn color(&self, name: &str, fallback: u32) -> u32 {
+        self.colors.get(name).copied().unwrap_or(fallback)
+    }
+
+    pub fn alpha(&self, name: &str, fallback: f32) -> f32 {
+        self.color_alpha.get(name).copied().unwrap_or(fallback)
+    }
 }
 
 impl MapHud {

@@ -30,7 +30,7 @@ impl BotView {
         }
     }
 
-    /// the reference implementation's compact settings category rail.
+    /// Legacy's compact settings category rail.
     pub(super) fn render_settings_sidebar(
         &self,
         cx: &mut Context<Self>,

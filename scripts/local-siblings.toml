@@ -1,0 +1,16 @@
+# Opt-in Cargo overrides for adjacent feature checkouts during development.
+# Paths are relative to this repository.
+[patch."https://github.com/xenomit-do/xenomit-game-api"]
+xenomit-game-api = { path = "../xenomit-game-api-inproc" }
+
+[patch."https://github.com/xenomit-do/xenomit-bot-runtime"]
+xenomit-bot-runtime = { path = "../xenomit-bot-runtime" }
+
+[patch."https://github.com/xenomit-do/xenomit-behavior-engine"]
+xenomit-behavior-engine = { path = "../xenomit-behavior-engine-api" }
+
+[patch."https://github.com/xenomit-do/xenomit-packet-client"]
+xenomit-packet-client = { path = "../xenomit-packet-client" }
+
+[patch."https://github.com/xenomit-do/xenomit-backpage"]
+xenomit_backpage = { path = "../xenomit-backpage" }

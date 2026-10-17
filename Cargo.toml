@@ -10,7 +10,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1.53.1", features = ["rt", "time"] }
 xenomit_backpage = { git = "https://github.com/xenomit-do/xenomit-backpage", tag = "v0.1.0" }
-xenomit-behavior-engine = { git = "https://github.com/xenomit-do/xenomit-behavior-engine", tag = "v0.1.0" }
+xenomit-behavior-engine = { git = "https://github.com/xenomit-do/xenomit-behavior-engine", rev = "a5335b666a2e64cec8af2be308d6f20812d8b359" }
 xenomit-bot-runtime = { git = "https://github.com/xenomit-do/xenomit-bot-runtime", tag = "v0.1.0" }
 xenomit-game-api = { git = "https://github.com/xenomit-do/xenomit-game-api", tag = "v0.1.0" }
 

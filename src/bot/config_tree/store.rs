@@ -1,6 +1,6 @@
 //! Values, profiles and persistence for the settings tree.
 //!
-//! The file layout mirrors the reference implementation's `ConfigManager`: `config.json` is the
+//! The file layout mirrors Legacy's `ConfigManager`: `config.json` is the
 //! default profile, other profiles live in `configs/<name>.json`, and each
 //! save first moves the previous file to `<name>_old.json`. Only explicitly
 //! set values are written, so new options pick up their defaults without a
@@ -103,7 +103,7 @@ impl ConfigStore {
         }
     }
 
-    /// Validates (clamping, like the reference implementation) and stores. Returns the stored value.
+    /// Validates (clamping, like Legacy) and stores. Returns the stored value.
     pub(crate) fn set(&mut self, path: &str, value: Value) -> Result<Value, String> {
         let node = self
             .schema

@@ -15,6 +15,7 @@ impl BotView {
         self.resume_after_reload = false;
         let bridge = self.bridge.take();
         let process = self.game_process.take();
+        let host = self.flash_host.take();
         let engine = self.engine.clone();
         self.behavior_running = false;
         self.busy = true;
@@ -33,6 +34,9 @@ impl BotView {
                             process_error = Some(format!("could not stop client process: {error}"));
                         }
                         let _ = process.wait();
+                    }
+                    if let Some(host) = host {
+                        host.shutdown();
                     }
                     drop(bridge);
                     behavior_error.or(process_error)
@@ -70,14 +74,28 @@ impl BotView {
         .detach();
     }
 
+    /// Show or hide the game window: through the in-process host when Flash
+    /// runs here, otherwise by finding the client process' window.
+    pub(super) fn set_game_window_visible(&self, visible: bool) -> Result<(), String> {
+        if let Some(host) = &self.flash_host {
+            return host
+                .set_window(xenomit_game_api::WindowCommand::Visible { visible })
+                .map_err(|error| format!("Could not change the Flash window: {error}"));
+        }
+        let pid = self
+            .game_pid
+            .ok_or("The game client window is not available.")?;
+        set_client_window_visible(pid, visible)
+    }
+
     pub(super) fn toggle_client_window(&mut self, cx: &mut Context<Self>) {
-        let Some(pid) = self.game_pid else {
+        if self.game_pid.is_none() {
             self.activity = "The game client window is not available.".into();
             cx.notify();
             return;
-        };
+        }
         let visible = !self.client_window_visible;
-        match set_client_window_visible(pid, visible) {
+        match self.set_game_window_visible(visible) {
             Ok(()) => {
                 self.client_window_visible = visible;
                 self.activity = if visible {
@@ -98,7 +116,12 @@ impl BotView {
         self.cpu_sample = sample;
         self.cpu_percent = cpu;
         self.mem_bytes = mem;
-        self.game_mem_bytes = self.game_pid.map_or(0, process_memory);
+        // An in-process host is already part of this process' memory.
+        self.game_mem_bytes = if self.flash_host.is_some() {
+            0
+        } else {
+            self.game_pid.map_or(0, process_memory)
+        };
     }
 
     /// The freshly spawned client opens its window a moment after launch;
@@ -217,7 +240,11 @@ impl BotView {
 
     pub(super) fn apply_flash_backend_change(&mut self, cx: &mut Context<Self>) {
         let backend = self.settings.flash_backend;
-        let Some(pid) = self.game_pid.filter(|_| self.game_process.is_some()) else {
+        let host = self.flash_host.clone();
+        let Some(pid) = self
+            .game_pid
+            .filter(|_| self.game_process.is_some() || host.is_some())
+        else {
             return;
         };
         if backend == self.client_flash_backend {
@@ -235,6 +262,12 @@ impl BotView {
                     if let Some(engine) = engine {
                         engine.stop()?;
                     }
+                    if let Some(host) = host {
+                        // Same in-process client; only its capture mode changes.
+                        host.set_backend(backend == FlashBackend::NativeMemory)
+                            .map_err(|e| e.to_string())?;
+                        return Ok(host as Arc<dyn GameClient>);
+                    }
                     let control =
                         xenomit_game_api::FlashClient::connect(pid).map_err(|e| e.to_string())?;
                     control
@@ -248,7 +281,9 @@ impl BotView {
                 })
                 .await;
             let _ = this.update(cx, |view, cx| {
-                if view.game_pid != Some(pid) || view.game_process.is_none() {
+                if view.game_pid != Some(pid)
+                    || (view.game_process.is_none() && view.flash_host.is_none())
+                {
                     return;
                 }
                 view.busy = false;

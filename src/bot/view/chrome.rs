@@ -13,7 +13,7 @@ pub(super) const TOP_TABS: [(&str, &str); 7] = [
 ];
 
 impl BotView {
-    /// the reference implementation's single-row header: icon buttons (menu, settings, start/stop,
+    /// Legacy's single-row header: icon buttons (menu, settings, start/stop,
     /// home) on the left, the centered title, then tick/CPU/ping/memory
     /// readouts, client-window and pin toggles and the caption buttons.
     pub(super) fn render_header(

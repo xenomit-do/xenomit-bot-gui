@@ -79,7 +79,7 @@ pub(super) struct BotView {
     all_module_descriptors: Vec<ModuleDescriptor>,
     plugin_descriptors: Vec<PluginDescriptor>,
     module_pages: BTreeMap<String, Entity<ModuleSettingsPage>>,
-    /// Reference style settings tree (the General tab); see `config_tree/`.
+    /// Legacy-style settings tree (the General tab); see `config_tree/`.
     config_page: Entity<ConfigTreePage>,
     settings_module_selector: Option<Entity<SelectState<Vec<ModuleChoice>>>>,
     settings_module_selector_value: String,
@@ -124,6 +124,8 @@ pub(super) struct BotView {
     connection_generation: u64,
     dashboard_visible: bool,
     game_process: Option<Child>,
+    /// In-process Flash host (`xenomit_flash.dll`); `game_process` is then None.
+    flash_host: Option<Arc<xenomit_game_api::FlashInProcClient>>,
     game_pid: Option<u32>,
     client_window_visible: bool,
     hide_flash_after_startup: bool,
@@ -314,6 +316,7 @@ impl BotView {
             connection_generation: 0,
             dashboard_visible: false,
             game_process: None,
+            flash_host: None,
             game_pid: None,
             client_window_visible: true,
             hide_flash_after_startup: false,
@@ -455,6 +458,9 @@ impl Drop for BotView {
         if let Some(mut process) = self.game_process.take() {
             let _ = process.kill();
             let _ = process.wait();
+        }
+        if let Some(host) = self.flash_host.take() {
+            host.shutdown();
         }
     }
 }

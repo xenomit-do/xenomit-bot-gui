@@ -1,6 +1,6 @@
 # Settings gaps: what the runtime still needs
 
-The settings tree (`src/bot/config_tree/`) ports the reference implementation's full option list. Options marked
+The settings tree (`src/bot/config_tree/`) ports Legacy's full option list. Options marked
 **LIVE** have a working consumer in the shell, runtime, engine, or client.
 **PARTIAL** options are consumed when their required observations or operations are available.
 **PLANNED** options are shown and persisted per profile, but have no working consumer yet.
@@ -178,11 +178,11 @@ Per-NPC radius, priority, allow/deny, key, formation, and flags are consumed by 
 Affects:
 - `loot.npc_infos` — Npc infos (partial)
 
-### `CONDITIONS` — condition expression language
+### `CONDITIONS` — Legacy condition language
 
 Also touches: Runtime.
 
-The editor parses supported condition expressions into the engine's typed representation and reports unsupported expressions. The supported operator/value subset is intentionally bounded; adding another condition expression requires a typed evaluator and validation case.
+The editor parses supported Legacy conditions into the engine's typed representation and reports unsupported expressions. The supported operator/value subset is intentionally bounded; adding another Legacy condition requires a typed evaluator and validation case.
 
 Affects:
 - `loot.sab.condition` — Other conditions (partial)
@@ -260,11 +260,11 @@ Waypoint retention and sequential/random selection are implemented. The remainin
 Affects:
 - `general.roaming.enemy_cbs_invisible` — Ignore CBS status when invisible (planned)
 
-### `CONDITIONS` — condition expression language
+### `CONDITIONS` — Legacy condition language
 
 Also touches: Behavior engine.
 
-The editor parses supported condition expressions into the engine's typed representation and reports unsupported expressions. The supported operator/value subset is intentionally bounded; adding another condition expression requires a typed evaluator and validation case.
+The editor parses supported Legacy conditions into the engine's typed representation and reports unsupported expressions. The supported operator/value subset is intentionally bounded; adding another Legacy condition requires a typed evaluator and validation case.
 
 Affects:
 - `loot.sab.condition` — Other conditions (partial)
@@ -300,12 +300,12 @@ Affects:
 
 Also touches: GUI shell.
 
-The runtime applies `min_tick` as a floor over the selected backend/module interval. `always_enabled`, `disable_render`, and `max_fps` still need a checked-in client/runtime consumer. Ruffle host internals are out of scope.
+The runtime applies `min_tick` as a floor over the selected backend/module interval. `max_fps` caps the Windows Flash host at launch (exe and in-process); Ruffle and live changes still need a consumer. `always_enabled` and `disable_render` still need a checked-in client/runtime consumer. Ruffle host internals are out of scope.
 
 Affects:
 - `bot_settings.performance.always_enabled` — Always enabled (planned)
 - `bot_settings.performance.disable_render` — Disable map render (3D) (planned)
-- `bot_settings.performance.max_fps` — Max FPS in-game (planned)
+- `bot_settings.performance.max_fps` — Max FPS in-game (partial)
 
 ### `EXTRA-ACTIONS` — Extra actions (condition -> action table)
 
@@ -362,9 +362,9 @@ Affects:
 
 Also touches: Runtime.
 
-The runtime applies `min_tick` as a floor over the selected backend/module interval. `always_enabled`, `disable_render`, and `max_fps` still need a checked-in client/runtime consumer. Ruffle host internals are out of scope.
+The runtime applies `min_tick` as a floor over the selected backend/module interval. `max_fps` caps the Windows Flash host at launch (exe and in-process); Ruffle and live changes still need a consumer. `always_enabled` and `disable_render` still need a checked-in client/runtime consumer. Ruffle host internals are out of scope.
 
 Affects:
 - `bot_settings.performance.always_enabled` — Always enabled (planned)
 - `bot_settings.performance.disable_render` — Disable map render (3D) (planned)
-- `bot_settings.performance.max_fps` — Max FPS in-game (planned)
+- `bot_settings.performance.max_fps` — Max FPS in-game (partial)

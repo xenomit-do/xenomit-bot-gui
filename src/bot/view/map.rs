@@ -319,8 +319,8 @@ impl BotView {
                     Some(end) if end <= now_secs => "EXPIRED".to_owned(),
                     Some(end) => format!(
                         "OK {}/{}",
-                        format_duration(now_secs.saturating_sub(self.session_started_secs) * 1000),
-                        format_duration(end.saturating_sub(self.session_started_secs) * 1000),
+                        legacy_time(now_secs.saturating_sub(self.session_started_secs) * 1000),
+                        legacy_time(end.saturating_sub(self.session_started_secs) * 1000),
                     ),
                     None => "OK".to_owned(),
                 });
