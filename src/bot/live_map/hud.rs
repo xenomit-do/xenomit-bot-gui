@@ -29,7 +29,7 @@ pub struct MapHud {
     pub sid: String,
     /// Right-edge booster lines: text and color, in display order.
     pub boosters: Vec<(String, u32)>,
-    /// Reference style display switches (`USERNAMES`, `ZONES`, and so on).
+    /// Legacy-style display switches (`USERNAMES`, `ZONES`, and so on).
     pub display_flags: BTreeSet<String>,
     /// RGB values read from `bot_settings.map_display.cs`.
     pub colors: BTreeMap<String, u32>,

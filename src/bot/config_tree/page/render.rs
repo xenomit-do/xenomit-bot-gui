@@ -901,7 +901,7 @@ impl ConfigTreePage {
         }
     }
 
-    /// the reference implementation's key-capture box: click it, press the key to bind. Backspace or
+    /// Legacy's key-capture box: click it, press the key to bind. Backspace or
     /// Delete clears, Escape (or clicking away) cancels. Keys without a
     /// character are stored by name (`F1`, `Enter`, `Up`, ...).
     fn key_editor(

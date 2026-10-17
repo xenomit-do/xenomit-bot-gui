@@ -169,6 +169,7 @@ impl BotView {
         );
         let engine = self.engine.clone();
         let process = self.game_process.take();
+        let host = self.flash_host.take();
         let bridge = self.bridge.take();
         let auth = SessionCredentials::SessionId {
             server: session.server.clone(),
@@ -191,6 +192,10 @@ impl BotView {
                 .spawn(async move {
                     if let Some(engine) = engine {
                         let _ = engine.stop();
+                    }
+                    // The in-process host must be stopped before it is started again.
+                    if let Some(host) = host {
+                        host.shutdown();
                     }
                     drop(bridge);
                     if let Some(mut process) = process {
@@ -218,6 +223,7 @@ impl BotView {
     pub(super) fn close_application(&mut self, cx: &mut Context<Self>) {
         let engine = self.engine.clone();
         let process = self.game_process.take();
+        let host = self.flash_host.take();
         let bridge = self.bridge.take();
         self.session_connected = false;
         self.behavior_running = false;
@@ -230,6 +236,9 @@ impl BotView {
                 .spawn(async move {
                     if let Some(engine) = engine {
                         let _ = engine.stop();
+                    }
+                    if let Some(host) = host {
+                        host.shutdown();
                     }
                     drop(bridge);
                     if let Some(mut process) = process {

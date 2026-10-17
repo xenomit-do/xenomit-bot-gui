@@ -1,4 +1,4 @@
-//! Hotkey values for the key-capture widget (the reference implementation's `CharacterEditor`).
+//! Hotkey values for the key-capture widget (Legacy's `CharacterEditor`).
 //!
 //! A key is stored as a string: one printable character (`"2"`, `"x"`, `"-"`)
 //! or the name of a key that has no character (`"F1"`, `"Enter"`, `"Up"`).

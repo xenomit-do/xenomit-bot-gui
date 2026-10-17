@@ -1,5 +1,5 @@
 //! Remaining client/runtime limitations for settings-tree options.
-//! Every `Support::gap`/`partial` in `settings.rs` names one of these ids;
+//! Every `Support::gap`/`partial` in `legacy.rs` names one of these ids;
 //! `docs/SETTINGS_GAPS.md` is generated from this table.
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -80,9 +80,9 @@ pub(crate) const GAPS: &[Gap] = &[
     },
     Gap {
         id: "CONDITIONS",
-        title: "condition expression language",
+        title: "Legacy condition language",
         layers: &[Engine, Runtime],
-        needs: "The editor parses supported condition expressions into the engine's typed representation and reports unsupported expressions. The supported operator/value subset is intentionally bounded; adding another condition expression requires a typed evaluator and validation case.",
+        needs: "The editor parses supported Legacy conditions into the engine's typed representation and reports unsupported expressions. The supported operator/value subset is intentionally bounded; adding another Legacy condition requires a typed evaluator and validation case.",
     },
     Gap {
         id: "GROUP",
@@ -148,7 +148,7 @@ pub(crate) const GAPS: &[Gap] = &[
         id: "PERFORMANCE",
         title: "Render and tick pacing",
         layers: &[Runtime, Shell],
-        needs: "The runtime applies `min_tick` as a floor over the selected backend/module interval. `always_enabled`, `disable_render`, and `max_fps` still need a checked-in client/runtime consumer. Ruffle host internals are out of scope.",
+        needs: "The runtime applies `min_tick` as a floor over the selected backend/module interval. `max_fps` caps the Windows Flash host at launch (exe and in-process); Ruffle and live changes still need a consumer. `always_enabled` and `disable_render` still need a checked-in client/runtime consumer. Ruffle host internals are out of scope.",
     },
     Gap {
         id: "EXTRA-ACTIONS",

@@ -294,8 +294,8 @@ pub(crate) fn apply(store: &ConfigStore, settings: &mut BotSettings) {
     );
     settings.repair_shield = percent_u8(shield);
 
-    // the reference implementation's "disabled" sentinel (-1) means unlimited; the engine uses 0.
-    // the reference implementation allows up to 9999; the engine schema stops at 1000.
+    // Legacy's "disabled" sentinel (-1) means unlimited; the engine uses 0.
+    // Legacy allows up to 9999; the engine schema stops at 1000.
     let deaths = store
         .get("general.safety.max_deaths")
         .as_i64()
@@ -323,7 +323,7 @@ pub(crate) fn apply(store: &ConfigStore, settings: &mut BotSettings) {
         .unwrap_or(0)
         .clamp(0, i64::from(u16::MAX)) as u16;
 
-    // Refresh: 0 minutes disables it, like the reference implementation.
+    // Refresh: 0 minutes disables it, like Legacy.
     let minutes = store
         .get("miscellaneous.refresh_time")
         .as_i64()
@@ -404,7 +404,7 @@ fn rows_as_flags(table: &Value, column: &str) -> std::collections::BTreeMap<Stri
 fn parse_condition(value: &Value) -> Value {
     value
         .as_str()
-        .and_then(|source| super::expression::parse_condition_expression(source).ok())
+        .and_then(|source| xenomit_behavior_engine::parse_rule_condition(source).ok())
         .unwrap_or_else(|| json!({"unsupported_condition": true}))
 }
 
@@ -433,7 +433,7 @@ fn extra_action_events(store: &ConfigStore) -> Vec<Value> {
                     let action = row["action"]
                         .as_str()
                         .and_then(|source| {
-                            super::expression::parse_action_expression(source).ok()
+                            xenomit_behavior_engine::parse_rule_action(source).ok()
                         })
                         .unwrap_or_else(|| json!({"unsupported_action": true}));
                     Some(json!({
@@ -458,7 +458,7 @@ pub(crate) fn import(
     descriptor: Option<&xenomit_game_api::ModuleDescriptor>,
 ) {
     // The active module's payload with the descriptor's defaults filled in, so
-    // keys the user never touched take the engine's value, not the reference implementation's.
+    // keys the user never touched take the engine's value, not Legacy's.
     let raw = settings.module_config().settings;
     let payload = descriptor
         .and_then(|descriptor| descriptor.prepare_settings(raw.clone()).ok())

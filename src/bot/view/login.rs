@@ -696,6 +696,7 @@ impl BotView {
                             }
                         }
                         view.game_process = launch.child;
+                        view.flash_host = launch.flash_host;
                         view.bridge = launch.bridge;
                         view.star_catalog = launch.star_catalog;
                         view.client_backend = backend;
@@ -889,12 +890,10 @@ impl BotView {
                                             && view.hide_flash_after_startup
                                         {
                                             view.hide_flash_after_startup = false;
-                                            if let Some(pid) = view.game_pid {
-                                                // Flash must activate visibly before Flex/game startup.
-                                                // Hide only after the loaded hero/map proves startup completed.
-                                                if set_client_window_visible(pid, false).is_ok() {
-                                                    view.client_window_visible = false;
-                                                }
+                                            // Flash must activate visibly before Flex/game startup.
+                                            // Hide only after the loaded hero/map proves startup completed.
+                                            if view.set_game_window_visible(false).is_ok() {
+                                                view.client_window_visible = false;
                                             }
                                         }
                                         view.activity = format!(

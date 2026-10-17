@@ -1,6 +1,6 @@
 use super::*;
 
-/// Shape one Consolas run — the font family matches the reference implementation's map fonts.
+/// Shape one Consolas run — the font family matches Legacy's map fonts.
 pub(super) fn shape_text(
     window: &mut Window,
     text: &str,
