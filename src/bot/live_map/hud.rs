@@ -63,20 +63,6 @@ impl MapHud {
     }
 }
 
-impl MapHud {
-    pub fn enabled(&self, name: &str) -> bool {
-        self.display_flags.contains(name)
-    }
-
-    pub fn color(&self, name: &str, fallback: u32) -> u32 {
-        self.colors.get(name).copied().unwrap_or(fallback)
-    }
-
-    pub fn alpha(&self, name: &str, fallback: f32) -> f32 {
-        self.color_alpha.get(name).copied().unwrap_or(fallback)
-    }
-}
-
 /// One reference style name + health/shield bar pair.
 #[derive(Clone, Debug)]
 pub struct BarHud {

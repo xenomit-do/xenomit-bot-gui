@@ -131,14 +131,6 @@ fn open_client_log() -> Result<(Arc<Mutex<File>>, ClientLogs), String> {
     ))
 }
 
-/// Collects the API launch settings consumed by the Flash launcher.
-pub(super) fn game_api_options(config_tree: &serde_json::Value) -> serde_json::Value {
-    config_tree
-        .pointer("/bot_settings/api_config")
-        .cloned()
-        .unwrap_or_default()
-}
-
 pub(super) fn authenticate_and_launch(
     provider: Arc<dyn SessionProvider>,
     kind: ClientKind,

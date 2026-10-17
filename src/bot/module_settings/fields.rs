@@ -230,7 +230,7 @@ impl ModuleSettingsPage {
                                         page.set_value(&key, value, cx);
                                     });
                                 })
-                                .child(legacy_checkbox_indicator(checked)),
+                                .child(checkbox_indicator(checked)),
                         ),
                     )
                     .child(div().w(px(116.0)).child(label("—", FAINT, 12.0))),
