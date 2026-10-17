@@ -8898,7 +8898,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
- "xenomit-game-api",
+ "xenomit-game-api 0.1.0 (git+https://github.com/xenomit-do/xenomit-game-api?tag=v0.1.0)",
 ]
 
 [[package]]
@@ -8909,7 +8909,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
- "xenomit-game-api",
+ "xenomit-game-api 0.1.0 (git+https://github.com/xenomit-do/xenomit-game-api?tag=v0.1.0)",
 ]
 
 [[package]]
@@ -8924,7 +8924,7 @@ dependencies = [
  "windows-sys 0.61.2",
  "xenomit-behavior-engine 0.1.0 (git+https://github.com/xenomit-do/xenomit-behavior-engine?rev=a5335b666a2e64cec8af2be308d6f20812d8b359)",
  "xenomit-bot-runtime",
- "xenomit-game-api",
+ "xenomit-game-api 0.1.0 (git+https://github.com/xenomit-do/xenomit-game-api?rev=6fe255e)",
  "xenomit_backpage",
 ]
 
@@ -8942,7 +8942,7 @@ dependencies = [
  "tokio",
  "tungstenite",
  "xenomit-behavior-engine 0.1.0 (git+https://github.com/xenomit-do/xenomit-behavior-engine?tag=v0.1.0)",
- "xenomit-game-api",
+ "xenomit-game-api 0.1.0 (git+https://github.com/xenomit-do/xenomit-game-api?tag=v0.1.0)",
  "xenomit-packet-client",
  "xenomit_backpage",
 ]
@@ -8960,6 +8960,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "xenomit-game-api"
+version = "0.1.0"
+source = "git+https://github.com/xenomit-do/xenomit-game-api?rev=6fe255e#6fe255efe03bcebea819a0d77af6e99860ebd8d7"
+dependencies = [
+ "roxmltree 0.20.0",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "xenomit-packet-client"
 version = "0.1.0"
 source = "git+https://github.com/xenomit-do/xenomit-packet-client?tag=v0.1.0#9be2dd2ce1229aebfc0fae5bb193de0c55430939"
@@ -8967,7 +8979,7 @@ dependencies = [
  "base64 0.22.1",
  "serde_json",
  "thiserror 2.0.21",
- "xenomit-game-api",
+ "xenomit-game-api 0.1.0 (git+https://github.com/xenomit-do/xenomit-game-api?tag=v0.1.0)",
  "zeroize",
 ]
 
