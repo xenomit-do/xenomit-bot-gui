@@ -368,4 +368,3 @@ Affects:
 - `bot_settings.performance.always_enabled` — Always enabled (planned)
 - `bot_settings.performance.disable_render` — Disable map render (3D) (planned)
 - `bot_settings.performance.max_fps` — Max FPS in-game (planned)
-
