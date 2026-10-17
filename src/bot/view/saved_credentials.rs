@@ -35,8 +35,7 @@ impl SavedCredentialStore {
             fs::create_dir_all(parent)
                 .map_err(|error| format!("Could not create saved credentials folder: {error}"))?;
         }
-        fs::write(path, encrypted)
-            .map_err(|error| format!("Could not save credentials: {error}"))
+        fs::write(path, encrypted).map_err(|error| format!("Could not save credentials: {error}"))
     }
 }
 

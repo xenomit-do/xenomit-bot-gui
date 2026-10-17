@@ -1,9 +1,9 @@
 use super::*;
 
 #[derive(Clone)]
-pub(super) struct MapChoice {
-    pub(super) label: String,
-    pub(super) value: Value,
+pub(crate) struct MapChoice {
+    pub(crate) label: String,
+    pub(crate) value: Value,
 }
 impl SelectItem for MapChoice {
     type Value = Value;
@@ -14,7 +14,10 @@ impl SelectItem for MapChoice {
         &self.value
     }
 }
-pub(super) fn map_choices(maps: &[xenomit_game_api::MapDescriptor], selected: &Value) -> Vec<MapChoice> {
+pub(crate) fn map_choices(
+    maps: &[xenomit_game_api::MapDescriptor],
+    selected: &Value,
+) -> Vec<MapChoice> {
     let selected = resolved_map_value(maps, selected);
     let mut choices = vec![MapChoice {
         label: "Current map".into(),
@@ -46,7 +49,10 @@ pub(super) fn map_choices(maps: &[xenomit_game_api::MapDescriptor], selected: &V
     }
     choices
 }
-pub(super) fn resolved_map_value(maps: &[xenomit_game_api::MapDescriptor], selected: &Value) -> Value {
+pub(crate) fn resolved_map_value(
+    maps: &[xenomit_game_api::MapDescriptor],
+    selected: &Value,
+) -> Value {
     let Some(name) = selected.as_str() else {
         return selected.clone();
     };

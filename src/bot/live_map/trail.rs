@@ -12,14 +12,32 @@ pub const TRAIL_MAX_JUMP: f32 = 2_000.0;
 
 /// Hero positions sampled from live frames on a fixed cadence; every point
 /// expires `TRAIL_TTL` after it was recorded, so the tail stays short.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct HeroTrail {
     points: VecDeque<(f32, f32, Instant)>,
     map_id: Option<i32>,
     last_sample: Option<Instant>,
+    ttl: Duration,
+}
+
+impl Default for HeroTrail {
+    fn default() -> Self {
+        Self {
+            points: VecDeque::new(),
+            map_id: None,
+            last_sample: None,
+            ttl: TRAIL_TTL,
+        }
+    }
 }
 
 impl HeroTrail {
+    pub fn set_ttl(&mut self, ttl: Duration) {
+        self.ttl = ttl;
+        if ttl.is_zero() {
+            self.clear();
+        }
+    }
     /// Record the newest hero position. Returns true when a point was added.
     /// Points are taken at most once per `TRAIL_SAMPLE` and expire after
     /// `TRAIL_TTL`. Resets on map changes and on jumps beyond
@@ -40,6 +58,10 @@ impl HeroTrail {
                 self.last_sample = None;
             }
         }
+        if self.ttl.is_zero() {
+            self.clear();
+            return false;
+        }
         let due = self
             .last_sample
             .is_none_or(|sampled| now.saturating_duration_since(sampled) >= TRAIL_SAMPLE);
@@ -50,7 +72,7 @@ impl HeroTrail {
         while self
             .points
             .front()
-            .is_some_and(|(_, _, recorded)| now.saturating_duration_since(*recorded) > TRAIL_TTL)
+            .is_some_and(|(_, _, recorded)| now.saturating_duration_since(*recorded) > self.ttl)
         {
             self.points.pop_front();
         }

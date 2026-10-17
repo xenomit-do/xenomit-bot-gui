@@ -127,7 +127,7 @@ pub(crate) fn button(
         .child(text.into())
 }
 
-// Segoe MDL2 Assets code points for the DarkBot-style header.
+// Segoe MDL2 Assets code points for the reference style header.
 pub(crate) const ICON_MENU: &str = "\u{E700}";
 
 pub(crate) const ICON_SETTINGS: &str = "\u{E713}";
@@ -143,7 +143,7 @@ pub(crate) const ICON_VIEW: &str = "\u{E7B3}";
 pub(crate) const ICON_PIN: &str = "\u{E718}";
 
 /// Square icon button for the header row; `selected` is the lighter
-/// highlight DarkBot gives an active toggle.
+/// highlight the reference implementation gives an active toggle.
 pub(crate) fn header_icon(
     id: &'static str,
     glyph: &'static str,
@@ -157,7 +157,11 @@ pub(crate) fn header_icon(
         .items_center()
         .justify_center()
         .rounded_sm()
-        .font_family(if glyph.is_ascii() { "Segoe UI" } else { "Segoe MDL2 Assets" })
+        .font_family(if glyph.is_ascii() {
+            "Segoe UI"
+        } else {
+            "Segoe MDL2 Assets"
+        })
         .text_size(px(15.0))
         .text_color(rgb(if enabled { 0xe6e6e6 } else { FAINT }))
         .when(selected, |this| this.bg(rgb(0x4a4f57)))
@@ -193,29 +197,30 @@ pub(crate) fn readout(icon: ReadoutIcon, value: &str) -> gpui_kit::Div {
             .child(div().w(px(2.0)).h(px(3.0)).bg(rgb(GREEN)))
             .child(div().w(px(2.0)).h(px(6.0)).bg(rgb(GREEN)))
             .child(div().w(px(2.0)).h(px(9.0)).bg(rgb(GREEN))),
-        ReadoutIcon::Cpu => div()
-            .w(px(12.0))
-            .flex()
-            .justify_center()
-            .child(div().w(px(6.0)).h(px(9.0)).border_1().border_color(rgb(GREEN)).bg(rgb(GREEN_TINT))),
-        ReadoutIcon::Memory => div()
-            .w(px(12.0))
-            .flex()
-            .justify_center()
-            .child(div().w(px(12.0)).h(px(6.0)).border_1().border_color(rgb(GREEN)).bg(rgb(GREEN_TINT))),
-    };
-    div()
-        .flex()
-        .items_center()
-        .gap(px(3.0))
-        .child(glyph)
-        .child(
+        ReadoutIcon::Cpu => div().w(px(12.0)).flex().justify_center().child(
             div()
-                .min_w(px(26.0))
-                .text_size(px(10.0))
-                .text_color(rgb(0xbbbbbb))
-                .child(value.to_owned()),
-        )
+                .w(px(6.0))
+                .h(px(9.0))
+                .border_1()
+                .border_color(rgb(GREEN))
+                .bg(rgb(GREEN_TINT)),
+        ),
+        ReadoutIcon::Memory => div().w(px(12.0)).flex().justify_center().child(
+            div()
+                .w(px(12.0))
+                .h(px(6.0))
+                .border_1()
+                .border_color(rgb(GREEN))
+                .bg(rgb(GREEN_TINT)),
+        ),
+    };
+    div().flex().items_center().gap(px(3.0)).child(glyph).child(
+        div()
+            .min_w(px(26.0))
+            .text_size(px(10.0))
+            .text_color(rgb(0xbbbbbb))
+            .child(value.to_owned()),
+    )
 }
 
 /// Windows-style caption button for the custom titlebar. The glyph inherits

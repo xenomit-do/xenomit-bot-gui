@@ -2,8 +2,9 @@
 
 use super::*;
 
-pub(super) const TOP_TABS: [(&str, &str); 6] = [
+pub(super) const TOP_TABS: [(&str, &str); 7] = [
     ("general", "General"),
+    ("modules", "Modules"),
     ("map_zones", "Map Zones"),
     ("targets", "Targets"),
     ("players", "Players"),
@@ -12,96 +13,32 @@ pub(super) const TOP_TABS: [(&str, &str); 6] = [
 ];
 
 impl BotView {
-    /// Custom titlebar for the borderless window: a slim drag strip that
-    /// shares the toolbar surface, plus Windows-style caption buttons.
-    /// `window_control_area` hitboxes make the OS perform drag/min/max/close
-    /// natively (HTCAPTION/HTMINBUTTON/HTMAXBUTTON/HTCLOSE), while non-client
-    /// mouse moves still drive the `.hover` feedback.
-    pub(super) fn render_titlebar(&self, window: &Window) -> impl IntoElement {
-        let maximized = window.is_maximized();
-        div()
-            .id("titlebar")
-            .w_full()
-            .h(px(30.0))
-            .flex()
-            .items_center()
-            .bg(rgb(TOP))
-            .child(
-                div()
-                    .id("titlebar-drag")
-                    .flex_1()
-                    .h_full()
-                    .flex()
-                    .items_center()
-                    .gap(px(8.0))
-                    .px(px(10.0))
-                    .window_control_area(WindowControlArea::Drag)
-                    .child(
-                        div()
-                            .size(px(15.0))
-                            .rounded_sm()
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .bg(rgb(BLUE))
-                            .text_size(px(9.0))
-                            .text_color(rgb(0xffffff))
-                            .child("◆"),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(11.0))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(rgb(MUTED))
-                            .child("Xenomit Bot"),
-                    )
-                    .child(label("v1.0", FAINT, 10.0)),
-            )
-            .child(
-                div()
-                    .flex()
-                    .h_full()
-                    .child(caption_button(
-                        "titlebar-min",
-                        WindowControlArea::Min,
-                        "–",
-                        false,
-                    ))
-                    .child(caption_button(
-                        "titlebar-max",
-                        WindowControlArea::Max,
-                        if maximized { "❐" } else { "□" },
-                        false,
-                    ))
-                    .child(caption_button(
-                        "titlebar-close",
-                        WindowControlArea::Close,
-                        "✕",
-                        true,
-                    )),
-            )
-    }
-
-    /// DarkBot's single-row header: icon buttons (menu, settings, start/stop,
+    /// the reference implementation's single-row header: icon buttons (menu, settings, start/stop,
     /// home) on the left, the centered title, then tick/CPU/ping/memory
     /// readouts, client-window and pin toggles and the caption buttons.
-    pub(super) fn render_header(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_header(
+        &self,
+        window: &Window,
+        cx: &mut Context<Self>,
+        native_titlebar: bool,
+    ) -> impl IntoElement {
         let running = self.behavior_running;
         let left = div()
             .flex()
             .items_center()
             .gap(px(2.0))
             .px(px(6.0))
-            .child(header_icon("hdr-menu", ICON_MENU, false, true).on_click(cx.listener(
-                |this, _, _, cx| {
-                    this.menu_open = !this.menu_open;
-                    cx.notify();
-                },
-            )))
             .child(
-                header_icon("hdr-settings", ICON_SETTINGS, self.settings_open, true).on_click(
-                    cx.listener(|this, _, _, cx| this.toggle_settings_window(cx)),
-                ),
+                header_icon("hdr-menu", ICON_MENU, false, true).on_click(cx.listener(
+                    |this, _, _, cx| {
+                        this.menu_open = !this.menu_open;
+                        cx.notify();
+                    },
+                )),
+            )
+            .child(
+                header_icon("hdr-settings", ICON_SETTINGS, self.settings_open, true)
+                    .on_click(cx.listener(|this, _, _, cx| this.toggle_settings_window(cx))),
             )
             .child(
                 header_icon(
@@ -170,7 +107,7 @@ impl BotView {
                     .child(readout(ReadoutIcon::Memory, &memory)),
             );
 
-        let right = div()
+        let mut right = div()
             .flex()
             .items_center()
             .gap(px(2.0))
@@ -191,8 +128,9 @@ impl BotView {
             .child(
                 header_icon("hdr-tray", "_", false, true)
                     .on_click(cx.listener(|this, _, _, cx| this.minimize_to_tray(cx))),
-            )
-            .child(
+            );
+        if !native_titlebar {
+            right = right.child(
                 div()
                     .flex()
                     .h_full()
@@ -216,16 +154,18 @@ impl BotView {
                         true,
                     )),
             );
+        }
 
-        div()
+        let mut header = div()
             .id("titlebar")
             .w_full()
             .h(px(38.0))
             .flex()
             .items_center()
             .bg(rgb(TOP))
-            .child(left)
-            .child(
+            .child(left);
+        if !native_titlebar {
+            header = header.child(
                 div()
                     .id("titlebar-drag")
                     .flex_1()
@@ -236,9 +176,12 @@ impl BotView {
                     .window_control_area(WindowControlArea::Drag)
                     .text_size(px(13.0))
                     .text_color(rgb(MUTED))
-                    .child("Xenomit Bot 1.0"),
-            )
-            .child(right)
+                    .child(self.app_title()),
+            );
+        } else {
+            header = header.child(div().flex_1());
+        }
+        header.child(right)
     }
 
     /// The ☰ dropdown, rendered at window level so a transparent backdrop

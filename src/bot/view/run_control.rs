@@ -4,7 +4,11 @@ use super::*;
 
 impl BotView {
     /// Optional `command_result` sink for panel-issued start/stop.
-    pub(super) fn run_behavior(&mut self, cx: &mut Context<Self>, panel_reply: Option<panel::CommandReply>) {
+    pub(super) fn run_behavior(
+        &mut self,
+        cx: &mut Context<Self>,
+        panel_reply: Option<panel::CommandReply>,
+    ) {
         if self.behavior_starting || self.behavior_running {
             Self::panel_fail(&panel_reply, "Module is already starting or running");
             return;
@@ -88,11 +92,13 @@ impl BotView {
                 match result {
                     Ok(()) => {
                         view.behavior_running = engine.is_running();
+                        view.update_statistics_policy(view.behavior_running);
                         view.activity = "Behavior engine accepted the selected module.".into();
                         Self::panel_ok(&panel_reply);
                     }
                     Err(error) => {
                         view.activity = format!("Could not start behavior: {error}");
+                        view.update_statistics_policy(false);
                         Self::panel_fail(&panel_reply, error);
                     }
                 }
@@ -112,7 +118,11 @@ impl BotView {
         .detach();
     }
 
-    pub(super) fn stop_behavior(&mut self, cx: &mut Context<Self>, panel_reply: Option<panel::CommandReply>) {
+    pub(super) fn stop_behavior(
+        &mut self,
+        cx: &mut Context<Self>,
+        panel_reply: Option<panel::CommandReply>,
+    ) {
         let Some(engine) = self.engine.clone() else {
             self.activity = "The behavior engine adapter is unavailable.".into();
             Self::panel_fail(&panel_reply, self.activity.clone());
@@ -126,6 +136,7 @@ impl BotView {
                 .await;
             let _ = this.update(cx, |view, cx| {
                 view.behavior_running = false;
+                view.update_statistics_policy(false);
                 match result {
                     Ok(()) => {
                         view.activity = "Behavior stopped.".into();

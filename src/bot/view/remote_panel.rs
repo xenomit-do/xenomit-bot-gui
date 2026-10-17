@@ -137,7 +137,11 @@ impl BotView {
     /// Execute one queued panel command; `command_result` replies go through
     /// the link's outbox, deferred to command completion where the action is
     /// asynchronous (start/stop/game_command/refresh_stats).
-    pub(super) fn handle_panel_command(&mut self, command: panel::PanelCommand, cx: &mut Context<Self>) {
+    pub(super) fn handle_panel_command(
+        &mut self,
+        command: panel::PanelCommand,
+        cx: &mut Context<Self>,
+    ) {
         let id = command.id.clone();
         let deferred = || Some((self.panel.clone(), id.clone()));
         match command.action.as_str() {

@@ -6,7 +6,9 @@ use super::*;
 /// process: `GetProcessTimes` deltas over the sample interval, plus
 /// `K32GetProcessMemoryInfo` for the working set.
 #[cfg(windows)]
-pub(super) fn process_usage(previous: Option<(Instant, u64)>) -> (Option<(Instant, u64)>, f64, u64) {
+pub(super) fn process_usage(
+    previous: Option<(Instant, u64)>,
+) -> (Option<(Instant, u64)>, f64, u64) {
     use windows_sys::Win32::Foundation::FILETIME;
     use windows_sys::Win32::System::ProcessStatus::{
         K32GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS,
@@ -80,7 +82,9 @@ pub(super) fn process_memory(_pid: u32) -> u64 {
 }
 
 #[cfg(not(windows))]
-pub(super) fn process_usage(previous: Option<(Instant, u64)>) -> (Option<(Instant, u64)>, f64, u64) {
+pub(super) fn process_usage(
+    previous: Option<(Instant, u64)>,
+) -> (Option<(Instant, u64)>, f64, u64) {
     (previous, 0.0, 0)
 }
 

@@ -1,5 +1,6 @@
 //! One retained page per immutable module descriptor. Switching modules reuses
 //! the page, input entities, subscriptions and unfinished edit buffers.
+use gpui_base::{Checkbox as SemanticCheckbox, CheckboxIndicator, CheckboxState};
 use gpui_kit::{
     Context, Entity, EventEmitter, FontWeight, Render, SharedString, Subscription, Window,
     component::{
@@ -12,7 +13,6 @@ use gpui_kit::{
     prelude::*,
     px, rgb,
 };
-use gpui_base::{Checkbox as SemanticCheckbox, CheckboxIndicator, CheckboxState};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use xenomit_game_api::{
@@ -39,6 +39,7 @@ pub(super) struct ModuleSettingsPage {
     map_search_inputs: BTreeMap<String, Entity<InputState>>,
     maps: Vec<xenomit_game_api::MapDescriptor>,
     maps_dirty: bool,
+    pet_gears: Option<BTreeSet<i32>>,
     locked: bool,
     visible_rules: Option<BTreeSet<String>>,
 }
@@ -77,6 +78,7 @@ impl ModuleSettingsPage {
             map_search_inputs: BTreeMap::new(),
             maps: vec![],
             maps_dirty: false,
+            pet_gears: None,
             locked: false,
             visible_rules: None,
         };
@@ -207,6 +209,13 @@ impl ModuleSettingsPage {
             cx.notify();
         }
     }
+    pub fn observe_pet_gears(&mut self, gears: Option<Vec<i32>>, cx: &mut Context<Self>) {
+        let gears = gears.map(|gears| gears.into_iter().collect());
+        if self.pet_gears != gears {
+            self.pet_gears = gears;
+            cx.notify();
+        }
+    }
     fn set_value(&mut self, key: &str, value: Value, cx: &mut Context<Self>) {
         if self.locked {
             return;
@@ -319,7 +328,7 @@ impl ModuleSettingsPage {
 
 mod edit;
 mod fields;
-mod maps;
+pub(crate) mod maps;
 mod render;
 #[cfg(test)]
 mod tests;
